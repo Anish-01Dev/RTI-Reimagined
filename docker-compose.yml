@@ -1,0 +1,15 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: rti-reimagined-postgres
+    environment:
+      POSTGRES_USER: rti
+      POSTGRES_PASSWORD: rti
+      POSTGRES_DB: rti_reimagined
+    ports:
+      - "5432:5432"
+    volumes:
+      - rti_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  rti_postgres_data:
