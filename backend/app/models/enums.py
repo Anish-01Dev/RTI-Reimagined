@@ -45,6 +45,14 @@ class DeadlineStatus(str, Enum):
     CANCELLED = "CANCELLED"
 
 
+class InformationItemStatus(str, Enum):
+    PENDING = "PENDING"
+    ANSWERED = "ANSWERED"
+    PARTIALLY_ANSWERED = "PARTIALLY_ANSWERED"
+    NOT_ANSWERED = "NOT_ANSWERED"
+    POTENTIALLY_DEFICIENT = "POTENTIALLY_DEFICIENT"
+
+
 class AppealType(str, Enum):
     FIRST = "FIRST"
     SECOND = "SECOND"

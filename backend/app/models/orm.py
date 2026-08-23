@@ -41,6 +41,7 @@ from app.models.enums import (
     DeadlineType,
     DocumentType,
     FilingChannel,
+    InformationItemStatus,
     UserRole,
 )
 
@@ -162,6 +163,11 @@ class RTIApplication(Base):
     appeals: Mapped[list[Appeal]] = relationship(
         back_populates="application", cascade="all, delete-orphan"
     )
+    information_items: Mapped[list[InformationItem]] = relationship(
+        back_populates="application",
+        order_by="InformationItem.sequence",
+        cascade="all, delete-orphan",
+    )
 
 
 class ApplicationEvent(Base):
@@ -245,6 +251,46 @@ class Deadline(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     application: Mapped[RTIApplication] = relationship(back_populates="deadlines")
+
+
+class InformationItem(Base):
+    __tablename__ = "information_items"
+    __table_args__ = (
+        Index("ix_information_items_application_sequence", "application_id", "sequence"),
+        CheckConstraint(
+            "status IN ('PENDING', 'ANSWERED', 'PARTIALLY_ANSWERED', 'NOT_ANSWERED', "
+            "'POTENTIALLY_DEFICIENT')",
+            name="information_item_status",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    application_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("applications.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    sequence: Mapped[int] = mapped_column(nullable=False)
+    question_text: Mapped[str] = mapped_column(Text, nullable=False)
+    category: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[InformationItemStatus] = mapped_column(
+        SAEnum(
+            InformationItemStatus,
+            name="information_item_status",
+            native_enum=False,
+            validate_strings=True,
+        ),
+        nullable=False,
+        default=InformationItemStatus.PENDING,
+    )
+    evidence_excerpt: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = _created_at()
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    application: Mapped[RTIApplication] = relationship(back_populates="information_items")
 
 
 class Appeal(Base):
