@@ -17,19 +17,82 @@ from typing import Any
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.domain.ai.schemas import DecomposedItem
 from app.domain.case_engine import state_machine
 from app.domain.errors import ConflictError, NotFoundError, ValidationError
-from app.models.enums import DeadlineStatus, DeadlineType
-from app.models.orm import ApplicationEvent, AuditLog, Deadline, RTIApplication
+from app.models.enums import DeadlineStatus, DeadlineType, InformationItemStatus
+from app.models.orm import ApplicationEvent, AuditLog, Deadline, InformationItem, RTIApplication
 from app.repositories import applications as applications_repo
 from app.repositories import audit_logs as audit_logs_repo
 from app.repositories import authorities as authorities_repo
 from app.repositories import deadlines as deadlines_repo
 from app.repositories import events as events_repo
+from app.repositories import information_items as information_items_repo
 from app.repositories import users as users_repo
 
 
 def create_application(
+    db: Session,
+    *,
+    user_id: uuid.UUID,
+    authority_id: uuid.UUID,
+    subject: str,
+    original_request: str,
+    refined_request: str | None = None,
+) -> RTIApplication:
+    application = _stage_application(
+        db,
+        user_id=user_id,
+        authority_id=authority_id,
+        subject=subject,
+        original_request=original_request,
+        refined_request=refined_request,
+    )
+
+    _commit(db)
+    db.refresh(application)
+    return application
+
+
+def create_application_with_items(
+    db: Session,
+    *,
+    user_id: uuid.UUID,
+    authority_id: uuid.UUID,
+    subject: str,
+    original_request: str,
+    items: list[DecomposedItem],
+) -> RTIApplication:
+    try:
+        application = _stage_application(
+            db,
+            user_id=user_id,
+            authority_id=authority_id,
+            subject=subject,
+            original_request=original_request,
+            refined_request=None,
+        )
+        for index, item in enumerate(items, start=1):
+            information_items_repo.create(
+                db,
+                InformationItem(
+                    application_id=application.id,
+                    sequence=index,
+                    question_text=item.question_text,
+                    category=item.category,
+                    status=InformationItemStatus.PENDING,
+                ),
+            )
+
+        _commit(db)
+    except Exception:
+        db.rollback()
+        raise
+    db.refresh(application)
+    return application
+
+
+def _stage_application(
     db: Session,
     *,
     user_id: uuid.UUID,
@@ -67,9 +130,6 @@ def create_application(
     _append_audit(
         db, actor_id=user_id, entity_type="application", entity_id=application.id, action="CREATE"
     )
-
-    _commit(db)
-    db.refresh(application)
     return application
 
 
@@ -88,6 +148,11 @@ def list_events(db: Session, application_id: uuid.UUID) -> list[ApplicationEvent
 def list_deadlines(db: Session, application_id: uuid.UUID) -> list[Deadline]:
     get_application(db, application_id)
     return deadlines_repo.list_for_application(db, application_id)
+
+
+def list_information_items(db: Session, application_id: uuid.UUID) -> list[InformationItem]:
+    get_application(db, application_id)
+    return information_items_repo.list_for_application(db, application_id)
 
 
 def record_event(

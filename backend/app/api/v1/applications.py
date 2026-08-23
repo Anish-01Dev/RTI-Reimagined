@@ -16,8 +16,15 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
+from app.domain.ai.client import LanguageModelClient, language_model_client
+from app.domain.ai.schemas import ApplicationDoctorOutput
 from app.domain.case_engine import service
-from app.schemas.applications import ApplicationCreate, ApplicationOut
+from app.schemas.applications import (
+    ApplicationCreate,
+    ApplicationDecomposeRequest,
+    ApplicationOut,
+    InformationItemOut,
+)
 from app.schemas.deadlines import DeadlineOut
 from app.schemas.events import ApplicationEventCreate, ApplicationEventOut
 
@@ -26,17 +33,44 @@ router = APIRouter(prefix="/applications", tags=["applications"])
 DbSession = Annotated[Session, Depends(get_db)]
 
 
+def get_language_model_client() -> LanguageModelClient:
+    return language_model_client
+
+
+AiClient = Annotated[LanguageModelClient, Depends(get_language_model_client)]
+
+
 @router.post("", response_model=ApplicationOut, status_code=status.HTTP_201_CREATED)
 def create_application(payload: ApplicationCreate, db: DbSession) -> ApplicationOut:
-    application = service.create_application(
-        db,
-        user_id=payload.user_id,
-        authority_id=payload.authority_id,
-        subject=payload.subject,
-        original_request=payload.original_request,
-        refined_request=payload.refined_request,
-    )
+    if payload.items:
+        application = service.create_application_with_items(
+            db,
+            user_id=payload.user_id,
+            authority_id=payload.authority_id,
+            subject=payload.subject,
+            original_request=payload.original_request,
+            items=payload.items,
+        )
+    else:
+        application = service.create_application(
+            db,
+            user_id=payload.user_id,
+            authority_id=payload.authority_id,
+            subject=payload.subject,
+            original_request=payload.original_request,
+            refined_request=payload.refined_request,
+        )
     return ApplicationOut.model_validate(application)
+
+
+@router.post("/decompose", response_model=ApplicationDoctorOutput)
+def decompose_application(
+    payload: ApplicationDecomposeRequest, ai_client: AiClient
+) -> ApplicationDoctorOutput:
+    return ai_client.decompose_application(
+        raw_text=payload.raw_text,
+        jurisdiction_hint=payload.jurisdiction_hint,
+    )
 
 
 @router.get("/{application_id}", response_model=ApplicationOut)
@@ -75,3 +109,9 @@ def create_event(
 def list_deadlines(application_id: uuid.UUID, db: DbSession) -> list[DeadlineOut]:
     deadlines = service.list_deadlines(db, application_id)
     return [DeadlineOut.model_validate(deadline) for deadline in deadlines]
+
+
+@router.get("/{application_id}/items", response_model=list[InformationItemOut])
+def list_information_items(application_id: uuid.UUID, db: DbSession) -> list[InformationItemOut]:
+    items = service.list_information_items(db, application_id)
+    return [InformationItemOut.model_validate(item) for item in items]
