@@ -19,6 +19,7 @@ from app.database import get_db
 from app.domain.ai.client import LanguageModelClient, language_model_client
 from app.domain.ai.schemas import ApplicationDoctorOutput
 from app.domain.case_engine import service
+from app.domain.errors import ValidationError
 from app.schemas.applications import (
     ApplicationCreate,
     ApplicationDecomposeRequest,
@@ -95,6 +96,8 @@ def create_event(
     payload: ApplicationEventCreate,
     db: DbSession,
 ) -> ApplicationEventOut:
+    if payload.event_type == "NO_RESPONSE":
+        raise ValidationError("NO_RESPONSE is created by the deadline sweep")
     event = service.record_event(
         db,
         application_id=application_id,

@@ -219,3 +219,26 @@ def test_post_illegal_event_returns_409(client, make_user, make_authority):
     )
     assert response.status_code == 409
     assert response.json()["error"]["code"] == "ILLEGAL_TRANSITION"
+
+
+def test_post_no_response_event_is_not_client_callable(client, make_user, make_authority):
+    user = make_user()
+    authority = make_authority()
+    create_response = client.post(
+        "/api/v1/applications",
+        json={
+            "user_id": str(user.id),
+            "authority_id": str(authority.id),
+            "subject": "Subject",
+            "original_request": "Original request text.",
+        },
+    )
+    application_id = create_response.json()["id"]
+
+    response = client.post(
+        f"/api/v1/applications/{application_id}/events",
+        json={"event_type": "NO_RESPONSE", "actor_id": str(user.id)},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
