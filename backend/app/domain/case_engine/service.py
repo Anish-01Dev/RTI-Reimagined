@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 
 from app.domain.ai.schemas import DecomposedItem
 from app.domain.case_engine import state_machine
+from app.domain.deadline_engine.rules import standard_response_due
 from app.domain.errors import ConflictError, NotFoundError, ValidationError
 from app.models.enums import (
     AppealStatus,
@@ -189,7 +190,12 @@ def record_event(
     against state_machine.TRANSITIONS — this is the application's only
     status-transition path; nothing else may write `applications.status`.
     Any other event_type is recorded as a status-independent, informational
-    event (e.g. "DEADLINE_REACHED", "APPEAL_CREATED").
+    event (e.g. "DEADLINE_REACHED", "APPEAL_CREATED"). Reaching certain
+    states also has a deterministic side effect (the Rights Clock: see
+    _apply_transition_side_effects) — this is the only place those side
+    effects are triggered from, so they fire regardless of which caller
+    (a client request, the deadline sweep, response recording) drove the
+    transition.
     """
     application = get_application(db, application_id)
 
@@ -197,6 +203,7 @@ def record_event(
         to_state = state_machine.ApplicationStatus[event_type]
         state_machine.validate_transition(application.status, to_state)
         application.status = to_state
+        _apply_transition_side_effects(db, application, to_state)
 
     event = _append_event(
         db, application=application, event_type=event_type, actor_id=actor_id, metadata=metadata
@@ -245,6 +252,49 @@ def create_deadline(
     _commit(db)
     db.refresh(deadline)
     return deadline
+
+
+def _apply_transition_side_effects(
+    db: Session, application: RTIApplication, to_state: state_machine.ApplicationStatus
+) -> None:
+    """The Rights Clock, wired to the transitions that start and stop it.
+
+    Deadline computation itself is deadline_engine's job (pure functions,
+    no I/O); this is the one place a transition decides *whether* to call
+    it. Without this, create_deadline is never invoked by anything a real
+    request path reaches — every deadline in the system would have to be
+    injected by hand, and the sweep would never find anything to act on.
+    """
+    now = datetime.now(UTC)
+    ApplicationStatus = state_machine.ApplicationStatus
+
+    if to_state == ApplicationStatus.SUBMITTED:
+        application.submitted_at = application.submitted_at or now
+    elif to_state == ApplicationStatus.ACKNOWLEDGED:
+        application.received_at = application.received_at or now
+    elif to_state == ApplicationStatus.UNDER_PROCESSING:
+        received_at = application.received_at or now
+        due_at = standard_response_due(received_at)
+        application.response_due_at = due_at
+        deadlines_repo.create(
+            db,
+            Deadline(
+                application_id=application.id,
+                deadline_type=DeadlineType.RESPONSE,
+                starts_at=received_at,
+                due_at=due_at,
+                status=DeadlineStatus.ACTIVE,
+            ),
+        )
+    elif to_state == ApplicationStatus.RESPONSE_RECEIVED:
+        application.response_received_at = application.response_received_at or now
+    elif to_state == ApplicationStatus.NO_RESPONSE:
+        response_deadline = deadlines_repo.get_latest_by_type(
+            db, application.id, DeadlineType.RESPONSE
+        )
+        if response_deadline is not None and response_deadline.status == DeadlineStatus.ACTIVE:
+            response_deadline.status = DeadlineStatus.MISSED
+            response_deadline.completed_at = now
 
 
 def file_first_appeal(

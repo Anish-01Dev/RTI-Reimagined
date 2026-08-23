@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from app.domain.case_engine import service
-from app.domain.case_engine.state_machine import ApplicationStatus
+from app.domain.case_engine.state_machine import ApplicationStatus, IllegalTransitionError
 from app.domain.deadline_engine import (
     TRANSFER_RESETS_CLOCK,
     first_appeal_due_from_deficient_decision,
@@ -18,6 +18,7 @@ from app.domain.deadline_engine import (
     transfer_due,
 )
 from app.models.enums import DeadlineType
+from app.repositories import deadlines as deadlines_repo
 
 REFERENCE_TIME = datetime(2026, 1, 15, 10, 30, tzinfo=UTC)
 
@@ -113,6 +114,17 @@ def _create_under_processing_application(db_session, user, authority):
     return service.get_application(db_session, application.id)
 
 
+def _backdate_response_deadline(db_session, application_id, *, starts_at, due_at) -> None:
+    """Reaching UNDER_PROCESSING already creates the RESPONSE deadline
+    automatically (see service._apply_transition_side_effects) — this is
+    the "time-skip" demo/test tooling that moves it into the past instead
+    of adding a second, unrealistic deadline row alongside it."""
+    deadline = deadlines_repo.get_latest_by_type(db_session, application_id, DeadlineType.RESPONSE)
+    deadline.starts_at = starts_at
+    deadline.due_at = due_at
+    db_session.commit()
+
+
 def test_deadline_sweep_moves_only_past_due_under_processing_cases(
     db_session, make_user, make_authority
 ):
@@ -121,17 +133,15 @@ def test_deadline_sweep_moves_only_past_due_under_processing_cases(
     past_due_application = _create_under_processing_application(db_session, user, authority)
     future_due_application = _create_under_processing_application(db_session, user, authority)
 
-    service.create_deadline(
+    _backdate_response_deadline(
         db_session,
-        application_id=past_due_application.id,
-        deadline_type=DeadlineType.RESPONSE,
+        past_due_application.id,
         starts_at=REFERENCE_TIME - timedelta(days=31),
         due_at=REFERENCE_TIME - timedelta(seconds=1),
     )
-    service.create_deadline(
+    _backdate_response_deadline(
         db_session,
-        application_id=future_due_application.id,
-        deadline_type=DeadlineType.RESPONSE,
+        future_due_application.id,
         starts_at=REFERENCE_TIME - timedelta(days=1),
         due_at=REFERENCE_TIME + timedelta(days=29),
     )
@@ -151,3 +161,49 @@ def test_deadline_sweep_moves_only_past_due_under_processing_cases(
     assert len(no_response_events) == 1
     assert no_response_events[0].actor_id is None
     assert no_response_events[0].event_metadata == {"trigger": "deadline_sweep"}
+
+
+def test_deadline_sweep_continues_past_a_single_application_failing(
+    db_session, make_user, make_authority, monkeypatch
+):
+    """One application no longer being eligible for NO_RESPONSE by the
+    time the sweep reaches it (the realistic case: an overlapping sweep
+    run already transitioned it) must not abort the rest of the batch."""
+    user = make_user()
+    authority = make_authority()
+    unsweepable_application = _create_under_processing_application(db_session, user, authority)
+    sweepable_application = _create_under_processing_application(db_session, user, authority)
+    for application in (unsweepable_application, sweepable_application):
+        _backdate_response_deadline(
+            db_session,
+            application.id,
+            starts_at=REFERENCE_TIME - timedelta(days=31),
+            due_at=REFERENCE_TIME - timedelta(seconds=1),
+        )
+
+    original_record_event = service.record_event
+    call_count = 0
+
+    def flaky_record_event(db, *, application_id, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if application_id == unsweepable_application.id:
+            raise IllegalTransitionError(
+                ApplicationStatus.NO_RESPONSE, ApplicationStatus.NO_RESPONSE
+            )
+        return original_record_event(db, application_id=application_id, **kwargs)
+
+    monkeypatch.setattr(
+        "app.domain.deadline_engine.sweep.case_service.record_event", flaky_record_event
+    )
+
+    transitioned = run_deadline_sweep(db_session, now=REFERENCE_TIME)
+
+    assert call_count == 2
+    assert transitioned == 1
+    assert service.get_application(db_session, unsweepable_application.id).status == (
+        ApplicationStatus.UNDER_PROCESSING
+    )
+    assert service.get_application(db_session, sweepable_application.id).status == (
+        ApplicationStatus.NO_RESPONSE
+    )

@@ -8,10 +8,10 @@ from datetime import UTC, datetime, timedelta
 
 from app.api.v1.applications import get_language_model_client
 from app.domain.ai.schemas import AppealDraftOutput
-from app.domain.case_engine import service
 from app.domain.deadline_engine import run_deadline_sweep
 from app.main import app
 from app.models.enums import DeadlineType
+from app.repositories import deadlines as deadlines_repo
 
 NOW = datetime(2026, 2, 1, 12, 0, tzinfo=UTC)
 
@@ -45,13 +45,15 @@ def _create_first_appeal_eligible_application(client, db_session, user, authorit
         )
         assert response.status_code == 201
 
-    service.create_deadline(
-        db_session,
-        application_id=uuid.UUID(application_id),
-        deadline_type=DeadlineType.RESPONSE,
-        starts_at=NOW - timedelta(days=31),
-        due_at=NOW - timedelta(days=1),
+    # Reaching UNDER_PROCESSING already created the RESPONSE deadline
+    # automatically (see service._apply_transition_side_effects) — this
+    # backdates it to simulate the statutory period having lapsed.
+    deadline = deadlines_repo.get_latest_by_type(
+        db_session, uuid.UUID(application_id), DeadlineType.RESPONSE
     )
+    deadline.starts_at = NOW - timedelta(days=31)
+    deadline.due_at = NOW - timedelta(days=1)
+    db_session.commit()
     run_deadline_sweep(db_session, now=NOW)
 
     response = client.post(

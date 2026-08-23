@@ -13,6 +13,7 @@ from app.domain.deadline_engine import run_deadline_sweep
 from app.domain.errors import ConflictError
 from app.models.enums import AppealStatus, AppealType, DeadlineType, InformationItemStatus
 from app.models.orm import Appeal
+from app.repositories import deadlines as deadlines_repo
 
 NOW = datetime(2026, 2, 1, 12, 0, tzinfo=UTC)
 
@@ -47,13 +48,13 @@ def _make_first_appeal_eligible_application(db_session, user, authority):
         service.record_event(
             db_session, application_id=application.id, event_type=event_type, actor_id=user.id
         )
-    service.create_deadline(
-        db_session,
-        application_id=application.id,
-        deadline_type=DeadlineType.RESPONSE,
-        starts_at=NOW - timedelta(days=31),
-        due_at=NOW - timedelta(days=1),
-    )
+    # Reaching UNDER_PROCESSING already created the RESPONSE deadline
+    # automatically (see service._apply_transition_side_effects) — this
+    # backdates it to simulate the statutory period having lapsed.
+    deadline = deadlines_repo.get_latest_by_type(db_session, application.id, DeadlineType.RESPONSE)
+    deadline.starts_at = NOW - timedelta(days=31)
+    deadline.due_at = NOW - timedelta(days=1)
+    db_session.commit()
     run_deadline_sweep(db_session, now=NOW)
     service.record_event(
         db_session, application_id=application.id, event_type="FIRST_APPEAL_ELIGIBLE", actor_id=None
