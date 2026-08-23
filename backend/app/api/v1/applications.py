@@ -21,6 +21,7 @@ from app.domain.ai.schemas import ApplicationDoctorOutput
 from app.domain.appeal_engine import compile_first_appeal_draft
 from app.domain.case_engine import service
 from app.domain.errors import ValidationError
+from app.domain.evidence import issue_certificate
 from app.domain.response_analysis import record_response
 from app.schemas.appeals import AppealDraftOut, AppealFileRequest, AppealOut
 from app.schemas.applications import (
@@ -31,6 +32,7 @@ from app.schemas.applications import (
 )
 from app.schemas.deadlines import DeadlineOut
 from app.schemas.events import ApplicationEventCreate, ApplicationEventOut
+from app.schemas.evidence import CertificateOut
 from app.schemas.responses import ApplicationResponseCreate
 
 router = APIRouter(prefix="/applications", tags=["applications"])
@@ -122,6 +124,20 @@ def list_deadlines(application_id: uuid.UUID, db: DbSession) -> list[DeadlineOut
 def list_information_items(application_id: uuid.UUID, db: DbSession) -> list[InformationItemOut]:
     items = service.list_information_items(db, application_id)
     return [InformationItemOut.model_validate(item) for item in items]
+
+
+@router.get("/{application_id}/certificate", response_model=CertificateOut)
+def get_certificate(application_id: uuid.UUID, db: DbSession) -> CertificateOut:
+    certificate = issue_certificate(db, application_id=application_id)
+    return CertificateOut(
+        application_id=certificate.application_id,
+        registration_number=certificate.registration_number,
+        authority_id=certificate.authority_id,
+        original_request_hash=certificate.original_request_hash,
+        issued_at=certificate.issued_at,
+        key_id=certificate.key_id,
+        signature=certificate.signature,
+    )
 
 
 @router.post("/{application_id}/response", response_model=list[InformationItemOut])

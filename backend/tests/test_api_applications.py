@@ -333,3 +333,38 @@ def test_post_no_response_event_is_not_client_callable(client, make_user, make_a
 
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
+def test_get_certificate_returns_signed_payload_without_personal_data(
+    client, make_user, make_authority
+):
+    user = make_user()
+    authority = make_authority()
+    create_response = client.post(
+        "/api/v1/applications",
+        json={
+            "user_id": str(user.id),
+            "authority_id": str(authority.id),
+            "subject": "Road repair records",
+            "original_request": "Please share records for Main Street repairs.",
+        },
+    )
+    application_id = create_response.json()["id"]
+
+    response = client.get(f"/api/v1/applications/{application_id}/certificate")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["application_id"] == application_id
+    assert body["authority_id"] == str(authority.id)
+    assert len(body["original_request_hash"]) == 64
+    assert body["signature"]
+    assert set(body.keys()) == {
+        "application_id",
+        "registration_number",
+        "authority_id",
+        "original_request_hash",
+        "issued_at",
+        "key_id",
+        "signature",
+    }

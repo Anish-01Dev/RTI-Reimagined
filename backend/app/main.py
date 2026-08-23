@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from app.api.v1.applications import router as applications_router
+from app.api.v1.evidence import router as evidence_router
 from app.database import engine
 from app.domain.case_engine.state_machine import IllegalTransitionError
 from app.domain.errors import ConflictError, NotFoundError, ValidationError
@@ -82,7 +83,7 @@ def health() -> JSONResponse:
 
 
 app.include_router(applications_router, prefix="/api/v1")
+app.include_router(evidence_router, prefix="/api/v1")
 
-# Remaining routers (cases, evidence, sync) are registered here as each API
-# surface is implemented, in the build order set out in
-# docs/product/ROADMAP.md.
+# Remaining routers (cases, sync) are registered here as each API surface
+# is implemented, in the build order set out in docs/product/ROADMAP.md.

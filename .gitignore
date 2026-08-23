@@ -20,6 +20,9 @@ coverage/
 .env.local
 *.local
 
+# Secrets / keys
+*.pem
+
 # Editors / OS
 .vscode/
 .idea/
