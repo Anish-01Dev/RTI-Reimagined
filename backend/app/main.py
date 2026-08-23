@@ -6,11 +6,13 @@ import logging
 import uuid
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 
 from app.api.v1.applications import router as applications_router
 from app.api.v1.evidence import router as evidence_router
+from app.config import settings
 from app.database import engine
 from app.domain.case_engine.state_machine import IllegalTransitionError
 from app.domain.errors import ConflictError, NotFoundError, ValidationError
@@ -20,6 +22,14 @@ logger = logging.getLogger("rti.api")
 app = FastAPI(
     title="RTI Reimagined API",
     version="0.1.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_allowed_origins_list,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
