@@ -140,6 +140,38 @@ def test_record_response_downgrades_hallucinated_evidence_excerpt(
     assert by_id[work_order_item.id].status == InformationItemStatus.NOT_ANSWERED
 
 
+def test_record_response_downgrades_empty_evidence_excerpt(db_session, make_user, make_authority):
+    """An empty string is trivially "in" any text — a plain substring
+    check alone would let this pass as verified evidence for nothing."""
+    user = make_user()
+    authority = make_authority()
+    application = _create_under_processing_application_with_items(db_session, user, authority)
+    estimate_item, _work_order_item = service.list_information_items(db_session, application.id)
+
+    ai_client = FakeAnswerIntegrityClient(
+        [
+            ItemClassification(
+                item_id=estimate_item.id,
+                status=InformationItemStatus.ANSWERED,
+                evidence_excerpt="   ",
+                confidence=0.95,
+            ),
+        ]
+    )
+
+    updated = record_response(
+        db_session,
+        application_id=application.id,
+        response_text=RESPONSE_TEXT,
+        actor_id=user.id,
+        ai_client=ai_client,
+    )
+
+    by_id = {item.id: item for item in updated}
+    assert by_id[estimate_item.id].status == InformationItemStatus.POTENTIALLY_DEFICIENT
+    assert by_id[estimate_item.id].evidence_excerpt is None
+
+
 def test_record_response_ignores_classification_for_unknown_item_id(
     db_session, make_user, make_authority
 ):

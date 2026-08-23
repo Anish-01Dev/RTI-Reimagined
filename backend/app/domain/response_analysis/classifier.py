@@ -49,7 +49,12 @@ def record_response(
 
         status = classification.status
         evidence_excerpt = classification.evidence_excerpt
-        if evidence_excerpt is not None and evidence_excerpt not in response_text:
+        # An empty/whitespace-only excerpt would trivially pass a plain
+        # substring check ("" is "in" every string) without proving
+        # anything — treated the same as a non-substring hallucination.
+        if evidence_excerpt is not None and (
+            not evidence_excerpt.strip() or evidence_excerpt not in response_text
+        ):
             # A quoted excerpt that isn't actually in the response text is a
             # hallucination — downgrade this item alone for human review
             # rather than trusting it or failing the whole batch.
