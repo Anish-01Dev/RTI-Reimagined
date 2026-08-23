@@ -1,6 +1,10 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, ConfigDict, Field
+import uuid
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from app.models.enums import InformationItemStatus
 
 
 class DecomposedItem(BaseModel):
@@ -25,3 +29,26 @@ class AppealDraftOutput(BaseModel):
 
     narrative: str = Field(min_length=1)
     open_items_summary: list[str] = Field(default_factory=list)
+
+
+class ItemClassification(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    item_id: uuid.UUID
+    status: InformationItemStatus
+    evidence_excerpt: str | None = None
+    confidence: float = Field(ge=0, le=1)
+
+    @model_validator(mode="after")
+    def _validate_status(self) -> ItemClassification:
+        if self.status == InformationItemStatus.PENDING:
+            raise ValueError("PENDING is not a valid classification output")
+        if self.status == InformationItemStatus.NOT_ANSWERED and self.evidence_excerpt is not None:
+            raise ValueError("evidence_excerpt must be omitted when status is NOT_ANSWERED")
+        return self
+
+
+class AnswerIntegrityOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    classifications: list[ItemClassification] = Field(default_factory=list)

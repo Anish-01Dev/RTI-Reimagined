@@ -21,6 +21,7 @@ from app.domain.ai.schemas import ApplicationDoctorOutput
 from app.domain.appeal_engine import compile_first_appeal_draft
 from app.domain.case_engine import service
 from app.domain.errors import ValidationError
+from app.domain.response_analysis import record_response
 from app.schemas.appeals import AppealDraftOut, AppealFileRequest, AppealOut
 from app.schemas.applications import (
     ApplicationCreate,
@@ -30,6 +31,7 @@ from app.schemas.applications import (
 )
 from app.schemas.deadlines import DeadlineOut
 from app.schemas.events import ApplicationEventCreate, ApplicationEventOut
+from app.schemas.responses import ApplicationResponseCreate
 
 router = APIRouter(prefix="/applications", tags=["applications"])
 
@@ -119,6 +121,23 @@ def list_deadlines(application_id: uuid.UUID, db: DbSession) -> list[DeadlineOut
 @router.get("/{application_id}/items", response_model=list[InformationItemOut])
 def list_information_items(application_id: uuid.UUID, db: DbSession) -> list[InformationItemOut]:
     items = service.list_information_items(db, application_id)
+    return [InformationItemOut.model_validate(item) for item in items]
+
+
+@router.post("/{application_id}/response", response_model=list[InformationItemOut])
+def submit_response(
+    application_id: uuid.UUID,
+    payload: ApplicationResponseCreate,
+    db: DbSession,
+    ai_client: AiClient,
+) -> list[InformationItemOut]:
+    items = record_response(
+        db,
+        application_id=application_id,
+        response_text=payload.response_text,
+        actor_id=payload.actor_id,
+        ai_client=ai_client,
+    )
     return [InformationItemOut.model_validate(item) for item in items]
 
 

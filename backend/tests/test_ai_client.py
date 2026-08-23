@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import uuid
+
 import pytest
 from pydantic import ValidationError as PydanticValidationError
 
 from app.domain.ai.client import OpenAILanguageModelClient
-from app.domain.ai.schemas import AppealDraftOutput, ApplicationDoctorOutput
+from app.domain.ai.schemas import AnswerIntegrityOutput, AppealDraftOutput, ApplicationDoctorOutput
 from app.domain.errors import ValidationError
 
 
@@ -56,7 +58,7 @@ def test_application_doctor_retries_invalid_output_once_then_raises_domain_error
             super().__init__(_Settings())
             self.calls = 0
 
-        def _request_application_doctor(self, raw_text, jurisdiction_hint):
+        def _request_structured(self, **kwargs):
             self.calls += 1
             return {
                 "subject": "Road repair records",
@@ -94,7 +96,7 @@ def test_appeal_draft_retries_invalid_output_once_then_raises_domain_error():
             super().__init__(_Settings())
             self.calls = 0
 
-        def _request_appeal_draft(self, **kwargs):
+        def _request_structured(self, **kwargs):
             self.calls += 1
             return {"open_items_summary": ["Work order"]}
 
@@ -107,6 +109,75 @@ def test_appeal_draft_retries_invalid_output_once_then_raises_domain_error():
             registration_number=None,
             grounds_citation="Section 7(1) of the RTI Act, 2005",
             open_items=[{"question_text": "Provide the work order", "category": None}],
+        )
+
+    assert client.calls == 2
+
+
+def test_answer_integrity_schema_rejects_pending_status():
+    with pytest.raises(PydanticValidationError):
+        AnswerIntegrityOutput.model_validate(
+            {
+                "classifications": [
+                    {
+                        "item_id": str(uuid.uuid4()),
+                        "status": "PENDING",
+                        "evidence_excerpt": None,
+                        "confidence": 0.9,
+                    }
+                ]
+            }
+        )
+
+
+def test_answer_integrity_schema_rejects_excerpt_on_not_answered():
+    with pytest.raises(PydanticValidationError):
+        AnswerIntegrityOutput.model_validate(
+            {
+                "classifications": [
+                    {
+                        "item_id": str(uuid.uuid4()),
+                        "status": "NOT_ANSWERED",
+                        "evidence_excerpt": "The work order is attached.",
+                        "confidence": 0.9,
+                    }
+                ]
+            }
+        )
+
+
+def test_answer_integrity_schema_rejects_unknown_confidence_range():
+    with pytest.raises(PydanticValidationError):
+        AnswerIntegrityOutput.model_validate(
+            {
+                "classifications": [
+                    {
+                        "item_id": str(uuid.uuid4()),
+                        "status": "ANSWERED",
+                        "evidence_excerpt": "The work order is attached.",
+                        "confidence": 1.5,
+                    }
+                ]
+            }
+        )
+
+
+def test_answer_integrity_retries_invalid_output_once_then_raises_domain_error():
+    class InvalidClient(OpenAILanguageModelClient):
+        def __init__(self) -> None:
+            super().__init__(_Settings())
+            self.calls = 0
+
+        def _request_structured(self, **kwargs):
+            self.calls += 1
+            return {"classifications": [{"item_id": "not-a-uuid", "status": "ANSWERED"}]}
+
+    client = InvalidClient()
+
+    with pytest.raises(ValidationError):
+        client.classify_response(
+            response_text="The work order is attached.",
+            items=[{"item_id": str(uuid.uuid4()), "question_text": "Provide the work order"}],
         )
 
     assert client.calls == 2

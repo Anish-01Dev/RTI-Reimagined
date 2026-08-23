@@ -1,8 +1,12 @@
 """Answer Integrity Engine.
 
-Classifies each original question against a received government response
-as answered, partially answered, or missing, with a supporting excerpt.
-Classification is a suggestion recorded against response_items; it is
-confirmed or overridden by the citizen and never mutates case state
-directly.
+Classifies each open ledger item against a received government response as
+answered, partially answered, missing, or potentially deficient, with a
+supporting excerpt. record_response is the only code path allowed to write
+information_items.status — see app.domain.case_engine.service for the
+equivalent rule on applications.status.
 """
+
+from app.domain.response_analysis.classifier import record_response
+
+__all__ = ["record_response"]

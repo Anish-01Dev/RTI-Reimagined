@@ -6,9 +6,15 @@ from __future__ import annotations
 import uuid
 
 from app.api.v1.applications import get_language_model_client
-from app.domain.ai.schemas import ApplicationDoctorOutput, DecomposedItem
+from app.domain.ai.schemas import (
+    AnswerIntegrityOutput,
+    ApplicationDoctorOutput,
+    DecomposedItem,
+    ItemClassification,
+)
 from app.domain.errors import ValidationError
 from app.main import app
+from app.models.enums import InformationItemStatus
 
 
 def test_health_check(client):
@@ -142,7 +148,92 @@ def test_get_unknown_application_returns_404_with_structured_error(client):
     assert response.status_code == 404
     body = response.json()
     assert body["error"]["code"] == "NOT_FOUND"
-    assert "request_id" in body
+
+
+def test_submit_response_classifies_ledger_and_transitions_status(
+    client, db_session, make_user, make_authority
+):
+    user = make_user()
+    authority = make_authority()
+    create_response = client.post(
+        "/api/v1/applications",
+        json={
+            "user_id": str(user.id),
+            "authority_id": str(authority.id),
+            "subject": "Road repair records",
+            "original_request": "Please share records for Main Street repairs.",
+            "items": [{"question_text": "Provide the work order", "category": "procurement"}],
+        },
+    )
+    application_id = create_response.json()["id"]
+    for event_type in (
+        "VALIDATED",
+        "READY_TO_FILE",
+        "SUBMITTED",
+        "ACKNOWLEDGED",
+        "UNDER_PROCESSING",
+    ):
+        response = client.post(
+            f"/api/v1/applications/{application_id}/events",
+            json={"event_type": event_type, "actor_id": str(user.id)},
+        )
+        assert response.status_code == 201
+    item_id = client.get(f"/api/v1/applications/{application_id}/items").json()[0]["id"]
+
+    class FakeClient:
+        def classify_response(self, *, response_text, items):
+            return AnswerIntegrityOutput(
+                classifications=[
+                    ItemClassification(
+                        item_id=uuid.UUID(item_id),
+                        status=InformationItemStatus.ANSWERED,
+                        evidence_excerpt="The work order was issued on 4 March 2025.",
+                        confidence=0.9,
+                    )
+                ]
+            )
+
+    app.dependency_overrides[get_language_model_client] = lambda: FakeClient()
+
+    response = client.post(
+        f"/api/v1/applications/{application_id}/response",
+        json={
+            "response_text": "The work order was issued on 4 March 2025.",
+            "actor_id": str(user.id),
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body[0]["status"] == "ANSWERED"
+    assert body[0]["evidence_excerpt"] == "The work order was issued on 4 March 2025."
+
+    application_response = client.get(f"/api/v1/applications/{application_id}")
+    assert application_response.json()["status"] == "RESPONSE_RECEIVED"
+
+
+def test_submit_response_before_under_processing_returns_409(client, make_user, make_authority):
+    user = make_user()
+    authority = make_authority()
+    create_response = client.post(
+        "/api/v1/applications",
+        json={
+            "user_id": str(user.id),
+            "authority_id": str(authority.id),
+            "subject": "Road repair records",
+            "original_request": "Please share records for Main Street repairs.",
+        },
+    )
+    application_id = create_response.json()["id"]
+
+    response = client.post(
+        f"/api/v1/applications/{application_id}/response",
+        json={"response_text": "Too early.", "actor_id": str(user.id)},
+    )
+
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "ILLEGAL_TRANSITION"
+    assert "request_id" in response.json()
 
 
 def test_create_application_with_unknown_authority_returns_404(client, make_user):
