@@ -4,6 +4,7 @@ import uuid
 
 from sqlalchemy.orm import Session
 
+from app.models.enums import InformationItemStatus
 from app.models.orm import InformationItem
 
 
@@ -17,6 +18,18 @@ def list_for_application(db: Session, application_id: uuid.UUID) -> list[Informa
     return (
         db.query(InformationItem)
         .filter(InformationItem.application_id == application_id)
+        .order_by(InformationItem.sequence)
+        .all()
+    )
+
+
+def list_open_for_application(db: Session, application_id: uuid.UUID) -> list[InformationItem]:
+    return (
+        db.query(InformationItem)
+        .filter(
+            InformationItem.application_id == application_id,
+            InformationItem.status != InformationItemStatus.ANSWERED,
+        )
         .order_by(InformationItem.sequence)
         .all()
     )

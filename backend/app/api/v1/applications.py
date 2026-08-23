@@ -18,8 +18,10 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.domain.ai.client import LanguageModelClient, language_model_client
 from app.domain.ai.schemas import ApplicationDoctorOutput
+from app.domain.appeal_engine import compile_first_appeal_draft
 from app.domain.case_engine import service
 from app.domain.errors import ValidationError
+from app.schemas.appeals import AppealDraftOut, AppealFileRequest, AppealOut
 from app.schemas.applications import (
     ApplicationCreate,
     ApplicationDecomposeRequest,
@@ -118,3 +120,38 @@ def list_deadlines(application_id: uuid.UUID, db: DbSession) -> list[DeadlineOut
 def list_information_items(application_id: uuid.UUID, db: DbSession) -> list[InformationItemOut]:
     items = service.list_information_items(db, application_id)
     return [InformationItemOut.model_validate(item) for item in items]
+
+
+@router.get("/{application_id}/appeal", response_model=AppealDraftOut)
+def get_first_appeal_draft(
+    application_id: uuid.UUID, db: DbSession, ai_client: AiClient
+) -> AppealDraftOut:
+    draft = compile_first_appeal_draft(db, application_id=application_id, ai_client=ai_client)
+    return AppealDraftOut(
+        application_id=draft.application_id,
+        registration_number=draft.registration_number,
+        subject=draft.subject,
+        original_request=draft.original_request,
+        filed_at=draft.filed_at,
+        response_due_at=draft.response_due_at,
+        grounds_citation=draft.grounds_citation,
+        appeal_window_citation=draft.appeal_window_citation,
+        open_items=[InformationItemOut.model_validate(item) for item in draft.open_items],
+        narrative=draft.narrative,
+        open_items_summary=draft.open_items_summary,
+    )
+
+
+@router.post(
+    "/{application_id}/appeal/file", response_model=AppealOut, status_code=status.HTTP_201_CREATED
+)
+def file_first_appeal(
+    application_id: uuid.UUID, payload: AppealFileRequest, db: DbSession
+) -> AppealOut:
+    appeal = service.file_first_appeal(
+        db,
+        application_id=application_id,
+        actor_id=payload.actor_id,
+        reason=payload.reason,
+    )
+    return AppealOut.model_validate(appeal)

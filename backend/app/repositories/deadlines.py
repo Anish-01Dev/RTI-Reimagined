@@ -27,6 +27,20 @@ def list_for_application(db: Session, application_id: uuid.UUID) -> list[Deadlin
     )
 
 
+def get_latest_by_type(
+    db: Session, application_id: uuid.UUID, deadline_type: DeadlineType
+) -> Deadline | None:
+    return (
+        db.query(Deadline)
+        .filter(
+            Deadline.application_id == application_id,
+            Deadline.deadline_type == deadline_type,
+        )
+        .order_by(Deadline.due_at.desc())
+        .first()
+    )
+
+
 def list_applications_with_due_active_response_deadlines(
     db: Session, *, now: datetime
 ) -> list[RTIApplication]:

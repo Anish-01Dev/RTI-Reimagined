@@ -11,7 +11,7 @@ responses. See app.api.v1.applications.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy.exc import IntegrityError
@@ -20,8 +20,22 @@ from sqlalchemy.orm import Session
 from app.domain.ai.schemas import DecomposedItem
 from app.domain.case_engine import state_machine
 from app.domain.errors import ConflictError, NotFoundError, ValidationError
-from app.models.enums import DeadlineStatus, DeadlineType, InformationItemStatus
-from app.models.orm import ApplicationEvent, AuditLog, Deadline, InformationItem, RTIApplication
+from app.models.enums import (
+    AppealStatus,
+    AppealType,
+    DeadlineStatus,
+    DeadlineType,
+    InformationItemStatus,
+)
+from app.models.orm import (
+    Appeal,
+    ApplicationEvent,
+    AuditLog,
+    Deadline,
+    InformationItem,
+    RTIApplication,
+)
+from app.repositories import appeals as appeals_repo
 from app.repositories import applications as applications_repo
 from app.repositories import audit_logs as audit_logs_repo
 from app.repositories import authorities as authorities_repo
@@ -155,6 +169,11 @@ def list_information_items(db: Session, application_id: uuid.UUID) -> list[Infor
     return information_items_repo.list_for_application(db, application_id)
 
 
+def list_open_information_items(db: Session, application_id: uuid.UUID) -> list[InformationItem]:
+    get_application(db, application_id)
+    return information_items_repo.list_open_for_application(db, application_id)
+
+
 def record_event(
     db: Session,
     *,
@@ -226,6 +245,45 @@ def create_deadline(
     _commit(db)
     db.refresh(deadline)
     return deadline
+
+
+def file_first_appeal(
+    db: Session,
+    *,
+    application_id: uuid.UUID,
+    actor_id: uuid.UUID | None,
+    reason: str,
+) -> Appeal:
+    """File the first appeal a citizen has reviewed and approved.
+
+    Checked against the transition table up front so an ineligible
+    application never gets a persisted Appeal row; record_event performs
+    the same check again as the sole authoritative gate on
+    applications.status and commits both rows in one transaction.
+    """
+    application = get_application(db, application_id)
+    state_machine.validate_transition(
+        application.status, state_machine.ApplicationStatus.FIRST_APPEAL_FILED
+    )
+
+    appeal = Appeal(
+        application_id=application.id,
+        appeal_type=AppealType.FIRST,
+        reason=reason,
+        status=AppealStatus.FILED,
+        submitted_at=datetime.now(UTC),
+    )
+    appeals_repo.create(db, appeal)
+
+    record_event(
+        db,
+        application_id=application.id,
+        event_type="FIRST_APPEAL_FILED",
+        actor_id=actor_id,
+        metadata={"appeal_id": str(appeal.id)},
+    )
+    db.refresh(appeal)
+    return appeal
 
 
 def _append_event(

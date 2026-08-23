@@ -18,3 +18,10 @@ class ApplicationDoctorOutput(BaseModel):
     items: list[DecomposedItem] = Field(min_length=1, max_length=8)
     life_or_liberty_flag: bool = False
     exemption_risk_notes: list[str] = Field(default_factory=list)
+
+
+class AppealDraftOutput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    narrative: str = Field(min_length=1)
+    open_items_summary: list[str] = Field(default_factory=list)
