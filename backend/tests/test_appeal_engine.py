@@ -158,3 +158,38 @@ def test_file_first_appeal_before_eligibility_is_rejected(db_session, make_user,
         service.file_first_appeal(
             db_session, application_id=application.id, actor_id=user.id, reason="Too early."
         )
+
+
+def test_compile_first_appeal_draft_has_no_precedent_matches_without_evidence(
+    db_session, make_user, make_authority
+):
+    user = make_user()
+    authority = make_authority()
+    application = _make_first_appeal_eligible_application(db_session, user, authority)
+
+    draft = compile_first_appeal_draft(
+        db_session, application_id=application.id, ai_client=FakeAppealClient()
+    )
+
+    assert draft.precedent_matches == []
+
+
+def test_compile_first_appeal_draft_matches_precedent_from_evidence_excerpt(
+    db_session, make_user, make_authority
+):
+    user = make_user()
+    authority = make_authority()
+    application = _make_first_appeal_eligible_application(db_session, user, authority)
+    items = service.list_information_items(db_session, application.id)
+    items[0].status = InformationItemStatus.POTENTIALLY_DEFICIENT
+    items[0].evidence_excerpt = "Withheld as personal information under 8(1)(j)."
+    db_session.commit()
+
+    draft = compile_first_appeal_draft(
+        db_session, application_id=application.id, ai_client=FakeAppealClient()
+    )
+
+    assert len(draft.precedent_matches) == 1
+    match = draft.precedent_matches[0]
+    assert match.item_id == items[0].id
+    assert match.section == "Section 8(1)(j)"

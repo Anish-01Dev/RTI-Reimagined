@@ -23,7 +23,7 @@ from app.domain.case_engine import service
 from app.domain.errors import ValidationError
 from app.domain.evidence import issue_certificate
 from app.domain.response_analysis import record_response
-from app.schemas.appeals import AppealDraftOut, AppealFileRequest, AppealOut
+from app.schemas.appeals import AppealDraftOut, AppealFileRequest, AppealOut, PrecedentMatchOut
 from app.schemas.applications import (
     ApplicationCreate,
     ApplicationDecomposeRequest,
@@ -174,6 +174,16 @@ def get_first_appeal_draft(
         open_items=[InformationItemOut.model_validate(item) for item in draft.open_items],
         narrative=draft.narrative,
         open_items_summary=draft.open_items_summary,
+        precedent_matches=[
+            PrecedentMatchOut(
+                item_id=match.item_id,
+                question_text=match.question_text,
+                section=match.section,
+                principle=match.principle,
+                citation=match.citation,
+            )
+            for match in draft.precedent_matches
+        ],
     )
 
 

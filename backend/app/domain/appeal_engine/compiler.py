@@ -17,6 +17,7 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 
 from app.domain.ai.client import LanguageModelClient
+from app.domain.appeal_engine.precedents import match_precedents
 from app.domain.case_engine import service
 from app.domain.case_engine.state_machine import ApplicationStatus
 from app.domain.errors import ConflictError
@@ -46,6 +47,15 @@ _ELIGIBLE_STATUSES = frozenset(
 
 
 @dataclasses.dataclass
+class PrecedentMatch:
+    item_id: uuid.UUID
+    question_text: str
+    section: str
+    principle: str
+    citation: str
+
+
+@dataclasses.dataclass
 class AppealDraft:
     application_id: uuid.UUID
     registration_number: str | None
@@ -58,6 +68,7 @@ class AppealDraft:
     open_items: list[InformationItem]
     narrative: str
     open_items_summary: list[str]
+    precedent_matches: list[PrecedentMatch]
 
 
 def compile_first_appeal_draft(
@@ -93,7 +104,22 @@ def compile_first_appeal_draft(
         open_items=open_items,
         narrative=ai_output.narrative,
         open_items_summary=ai_output.open_items_summary,
+        precedent_matches=_match_precedents(open_items),
     )
+
+
+def _match_precedents(open_items: list[InformationItem]) -> list[PrecedentMatch]:
+    return [
+        PrecedentMatch(
+            item_id=item.id,
+            question_text=item.question_text,
+            section=precedent.section,
+            principle=precedent.principle,
+            citation=precedent.citation,
+        )
+        for item in open_items
+        for precedent in match_precedents(item.evidence_excerpt)
+    ]
 
 
 def _grounds_trigger(db: Session, application_id: uuid.UUID) -> str:

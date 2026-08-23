@@ -9,6 +9,14 @@ from app.models.enums import AppealStatus, AppealType
 from app.schemas.applications import InformationItemOut
 
 
+class PrecedentMatchOut(BaseModel):
+    item_id: uuid.UUID
+    question_text: str
+    section: str
+    principle: str
+    citation: str
+
+
 class AppealDraftOut(BaseModel):
     application_id: uuid.UUID
     registration_number: str | None
@@ -21,6 +29,7 @@ class AppealDraftOut(BaseModel):
     open_items: list[InformationItemOut]
     narrative: str
     open_items_summary: list[str]
+    precedent_matches: list[PrecedentMatchOut]
 
 
 class AppealFileRequest(BaseModel):

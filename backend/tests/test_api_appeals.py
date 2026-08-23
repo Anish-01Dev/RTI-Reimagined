@@ -87,6 +87,7 @@ def test_get_and_file_first_appeal(client, db_session, make_user, make_authority
     assert draft_body["narrative"] == (
         "The applicant received no response within the statutory period."
     )
+    assert draft_body["precedent_matches"] == []
 
     file_response = client.post(
         f"/api/v1/applications/{application_id}/appeal/file",
