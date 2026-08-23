@@ -26,6 +26,7 @@ from sqlalchemy import (
     Index,
     String,
     Text,
+    UniqueConstraint,
 )
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB, UUID
@@ -295,6 +296,16 @@ class InformationItem(Base):
 
 class Appeal(Base):
     __tablename__ = "appeals"
+    __table_args__ = (
+        # The state machine allows at most one FIRST and one SECOND appeal
+        # per application, ever — there is no transition back to a
+        # re-fileable status once one is filed. Enforced here so a raced
+        # double-submit (double-click, retry-on-timeout) can produce a
+        # second Appeal row only by first breaking that invariant.
+        UniqueConstraint(
+            "application_id", "appeal_type", name="uq_appeals_application_appeal_type"
+        ),
+    )
 
     id: Mapped[uuid.UUID] = _uuid_pk()
     application_id: Mapped[uuid.UUID] = mapped_column(

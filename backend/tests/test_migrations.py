@@ -50,7 +50,10 @@ def test_information_items_migration_roundtrip(monkeypatch) -> None:
         command.upgrade(config, "head")
         assert "information_items" in inspect(engine).get_table_names()
 
-        command.downgrade(config, "-1")
+        # Target the specific pre-ledger revision rather than a relative
+        # "-1" — the latter silently starts meaning something else the
+        # moment another migration lands on top of this one.
+        command.downgrade(config, "0560720502fd")
         assert "information_items" not in inspect(engine).get_table_names()
 
         command.upgrade(config, "head")
