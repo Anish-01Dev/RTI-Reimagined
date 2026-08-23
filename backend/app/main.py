@@ -6,6 +6,7 @@ import logging
 import uuid
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
@@ -70,6 +71,20 @@ async def illegal_transition_handler(request: Request, exc: IllegalTransitionErr
 @app.exception_handler(ValidationError)
 async def validation_handler(request: Request, exc: ValidationError) -> JSONResponse:
     return _error_response(request, 422, "VALIDATION_ERROR", str(exc))
+
+
+@app.exception_handler(RequestValidationError)
+async def request_validation_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+    # FastAPI's own request parsing (malformed body, missing/extra fields,
+    # a non-UUID path parameter, ...) raises this before a route ever
+    # runs, bypassing every handler above. Without this handler it falls
+    # through to FastAPI's default {"detail": [...]} shape — the one place
+    # a response wouldn't match the error envelope every other failure
+    # in this API uses.
+    message = "; ".join(
+        f"{'.'.join(str(part) for part in error['loc'])}: {error['msg']}" for error in exc.errors()
+    )
+    return _error_response(request, 422, "VALIDATION_ERROR", message)
 
 
 @app.exception_handler(Exception)
