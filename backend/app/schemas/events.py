@@ -8,6 +8,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class ApplicationEventCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     event_type: str = Field(min_length=1, max_length=64)
     # NOTE: same pre-authentication placeholder as ApplicationCreate.user_id
     # — see app/schemas/applications.py.

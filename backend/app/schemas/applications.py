@@ -11,6 +11,8 @@ from app.models.enums import InformationItemStatus
 
 
 class ApplicationCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     # NOTE: user_id is a pre-authentication placeholder. There is no auth
     # subsystem yet (out of scope for this phase — see docs/product/ROADMAP.md),
     # so identity has nowhere else to come from. Once auth exists, this
@@ -59,5 +61,7 @@ class InformationItemOut(BaseModel):
 
 
 class ApplicationDecomposeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     raw_text: str = Field(min_length=1)
     jurisdiction_hint: str | None = None

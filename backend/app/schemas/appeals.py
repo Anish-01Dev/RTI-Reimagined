@@ -33,6 +33,8 @@ class AppealDraftOut(BaseModel):
 
 
 class AppealFileRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     # NOTE: same pre-authentication placeholder as ApplicationCreate.user_id
     # — see app/schemas/applications.py.
     actor_id: uuid.UUID | None = None

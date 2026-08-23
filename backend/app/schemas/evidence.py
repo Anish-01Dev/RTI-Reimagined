@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 class CertificateOut(BaseModel):
@@ -17,6 +17,8 @@ class CertificateOut(BaseModel):
 
 
 class CertificateVerifyRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     application_id: uuid.UUID
     registration_number: str | None = None
     authority_id: uuid.UUID
