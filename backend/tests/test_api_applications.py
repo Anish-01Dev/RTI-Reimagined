@@ -335,6 +335,80 @@ def test_post_no_response_event_is_not_client_callable(client, make_user, make_a
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
 
 
+def test_post_response_received_event_is_not_client_callable(client, make_user, make_authority):
+    user = make_user()
+    authority = make_authority()
+    create_response = client.post(
+        "/api/v1/applications",
+        json={
+            "user_id": str(user.id),
+            "authority_id": str(authority.id),
+            "subject": "Subject",
+            "original_request": "Original request text.",
+        },
+    )
+    application_id = create_response.json()["id"]
+    for event_type in (
+        "VALIDATED",
+        "READY_TO_FILE",
+        "SUBMITTED",
+        "ACKNOWLEDGED",
+        "UNDER_PROCESSING",
+    ):
+        response = client.post(
+            f"/api/v1/applications/{application_id}/events",
+            json={"event_type": event_type, "actor_id": str(user.id)},
+        )
+        assert response.status_code == 201
+
+    response = client.post(
+        f"/api/v1/applications/{application_id}/events",
+        json={"event_type": "RESPONSE_RECEIVED", "actor_id": str(user.id)},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+    items = client.get(f"/api/v1/applications/{application_id}/items").json()
+    assert items == []
+    application = client.get(f"/api/v1/applications/{application_id}").json()
+    assert application["status"] == "UNDER_PROCESSING"
+
+
+def test_post_first_appeal_filed_event_is_not_client_callable(client, make_user, make_authority):
+    user = make_user()
+    authority = make_authority()
+    create_response = client.post(
+        "/api/v1/applications",
+        json={
+            "user_id": str(user.id),
+            "authority_id": str(authority.id),
+            "subject": "Subject",
+            "original_request": "Original request text.",
+        },
+    )
+    application_id = create_response.json()["id"]
+    for event_type in (
+        "VALIDATED",
+        "READY_TO_FILE",
+        "SUBMITTED",
+        "ACKNOWLEDGED",
+        "UNDER_PROCESSING",
+    ):
+        response = client.post(
+            f"/api/v1/applications/{application_id}/events",
+            json={"event_type": event_type, "actor_id": str(user.id)},
+        )
+        assert response.status_code == 201
+
+    response = client.post(
+        f"/api/v1/applications/{application_id}/events",
+        json={"event_type": "FIRST_APPEAL_FILED", "actor_id": str(user.id)},
+    )
+
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+
+
 def test_get_certificate_returns_signed_payload_without_personal_data(
     client, make_user, make_authority
 ):

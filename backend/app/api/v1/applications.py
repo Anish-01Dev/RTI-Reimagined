@@ -92,6 +92,19 @@ def list_events(application_id: uuid.UUID, db: DbSession) -> list[ApplicationEve
     return [ApplicationEventOut.model_validate(event) for event in events]
 
 
+_EVENTS_WITH_A_DEDICATED_ENDPOINT = {
+    "NO_RESPONSE": "NO_RESPONSE is created by the deadline sweep",
+    "RESPONSE_RECEIVED": (
+        "RESPONSE_RECEIVED is created by POST /applications/{id}/response, "
+        "which also runs Answer Integrity against the ledger"
+    ),
+    "FIRST_APPEAL_FILED": (
+        "FIRST_APPEAL_FILED is created by POST /applications/{id}/appeal/file, "
+        "which also creates the Appeal record"
+    ),
+}
+
+
 @router.post(
     "/{application_id}/events",
     response_model=ApplicationEventOut,
@@ -102,8 +115,8 @@ def create_event(
     payload: ApplicationEventCreate,
     db: DbSession,
 ) -> ApplicationEventOut:
-    if payload.event_type == "NO_RESPONSE":
-        raise ValidationError("NO_RESPONSE is created by the deadline sweep")
+    if payload.event_type in _EVENTS_WITH_A_DEDICATED_ENDPOINT:
+        raise ValidationError(_EVENTS_WITH_A_DEDICATED_ENDPOINT[payload.event_type])
     event = service.record_event(
         db,
         application_id=application_id,
