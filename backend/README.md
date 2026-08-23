@@ -27,7 +27,7 @@ app/
 ## Local Development
 
 ```bash
-pip install -e .
+pip install -e ".[dev]"
 uvicorn app.main:app --reload
 ```
 

@@ -7,7 +7,7 @@ db-down:
 	docker compose down
 
 backend-install:
-	cd backend && pip install -e .
+	cd backend && pip install -e ".[dev]"
 
 backend-dev:
 	cd backend && uvicorn app.main:app --reload
@@ -25,5 +25,5 @@ frontend-test:
 	cd frontend && npm test
 
 lint:
-	cd backend && ruff check app && black --check app
+	cd backend && ruff check . && black --check .
 	cd frontend && npm run lint

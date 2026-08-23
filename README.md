@@ -64,7 +64,7 @@ docker compose up -d
 
 # backend
 cd backend
-pip install -e .
+pip install -e ".[dev]"
 uvicorn app.main:app --reload
 
 # frontend
