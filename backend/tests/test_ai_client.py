@@ -5,13 +5,49 @@ import uuid
 import pytest
 from pydantic import ValidationError as PydanticValidationError
 
-from app.domain.ai.client import OpenAILanguageModelClient
+from app.domain.ai.client import OpenAILanguageModelClient, _to_strict_schema
 from app.domain.ai.schemas import AnswerIntegrityOutput, AppealDraftOutput, ApplicationDoctorOutput
 from app.domain.errors import ValidationError
+
+_UNSUPPORTED_STRICT_SCHEMA_KEYWORDS = (
+    "minLength",
+    "maxLength",
+    "minItems",
+    "maxItems",
+    "minimum",
+    "maximum",
+    "exclusiveMinimum",
+    "exclusiveMaximum",
+    "format",
+)
 
 
 class _Settings:
     language_model_api_key = "test-key"
+
+
+def _assert_strict_schema_compliant(node) -> None:
+    """Every object node must list all of its properties as required, and
+    none of OpenAI strict mode's unsupported keywords may appear anywhere
+    in the tree — the two hard requirements _to_strict_schema exists to
+    satisfy (see app.domain.ai.client)."""
+    if isinstance(node, dict):
+        for keyword in _UNSUPPORTED_STRICT_SCHEMA_KEYWORDS:
+            assert keyword not in node
+        if node.get("type") == "object" and "properties" in node:
+            assert set(node["properties"]) == set(node.get("required", []))
+        for value in node.values():
+            _assert_strict_schema_compliant(value)
+    elif isinstance(node, list):
+        for item in node:
+            _assert_strict_schema_compliant(item)
+
+
+@pytest.mark.parametrize(
+    "response_schema", [ApplicationDoctorOutput, AppealDraftOutput, AnswerIntegrityOutput]
+)
+def test_to_strict_schema_is_openai_strict_mode_compliant(response_schema):
+    _assert_strict_schema_compliant(_to_strict_schema(response_schema.model_json_schema()))
 
 
 def test_application_doctor_schema_rejects_missing_required_field():

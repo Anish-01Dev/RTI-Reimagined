@@ -18,6 +18,41 @@ from app.domain.errors import ValidationError
 
 T = TypeVar("T", bound=BaseModel)
 
+# Keywords Pydantic emits that OpenAI's structured-output strict mode
+# doesn't support. Dropping them here only affects what's sent to the
+# model — every response is still validated against the full, unmodified
+# Pydantic schema afterward, so no actual constraint is weakened.
+_UNSUPPORTED_STRICT_SCHEMA_KEYWORDS = (
+    "minLength",
+    "maxLength",
+    "minItems",
+    "maxItems",
+    "minimum",
+    "maximum",
+    "exclusiveMinimum",
+    "exclusiveMaximum",
+    "format",
+)
+
+
+def _to_strict_schema(schema: Any) -> Any:
+    """Rewrite a Pydantic-generated JSON schema to satisfy OpenAI strict
+    mode's two hard requirements: every property is listed in `required`
+    (optionality is expressed through the type union, not omission), and
+    only a limited keyword subset is accepted."""
+    if isinstance(schema, dict):
+        rewritten = {
+            key: _to_strict_schema(value)
+            for key, value in schema.items()
+            if key not in _UNSUPPORTED_STRICT_SCHEMA_KEYWORDS
+        }
+        if rewritten.get("type") == "object" and "properties" in rewritten:
+            rewritten["required"] = list(rewritten["properties"].keys())
+        return rewritten
+    if isinstance(schema, list):
+        return [_to_strict_schema(item) for item in schema]
+    return schema
+
 
 class LanguageModelClient(Protocol):
     def decompose_application(
@@ -177,7 +212,7 @@ class OpenAILanguageModelClient:
                 "json_schema": {
                     "name": schema_name,
                     "strict": True,
-                    "schema": response_schema.model_json_schema(),
+                    "schema": _to_strict_schema(response_schema.model_json_schema()),
                 },
             },
         }
