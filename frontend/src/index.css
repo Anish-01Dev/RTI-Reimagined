@@ -1,0 +1,206 @@
+@import "./assets/fonts/fonts.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-family: "Inter", "Noto Sans Devanagari", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply bg-canvas text-ink;
+    font-feature-settings: "cv05", "ss01";
+  }
+
+  :lang(hi) {
+    font-family: "Noto Sans Devanagari", "Inter", sans-serif;
+  }
+
+  /* Tabular figures for anything numeric — counts, deadlines, hashes. */
+  .tnum,
+  th,
+  td,
+  time,
+  .metric-value {
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::selection {
+    background: theme("colors.primary-wash");
+  }
+}
+
+.material-symbols-outlined {
+  font-variation-settings:
+    "FILL" 0,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 20;
+}
+
+.filled-icon,
+.material-symbols-outlined[data-filled="true"] {
+  font-variation-settings:
+    "FILL" 1,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 20;
+}
+
+@layer components {
+  /* ---- Type helpers ---- */
+  .eyebrow {
+    @apply text-eyebrow uppercase text-ink-3;
+  }
+  .section-label {
+    @apply text-section uppercase text-ink-3;
+  }
+  .page-title {
+    @apply text-display-sm text-ink;
+  }
+  .card-title {
+    @apply text-title text-ink;
+  }
+  .meta {
+    @apply text-[12.5px] leading-[18px] text-ink-3;
+  }
+  .mono {
+    @apply font-mono text-[12.5px] tracking-tight;
+  }
+
+  /* ---- Surfaces ---- */
+  .card {
+    @apply bg-panel border border-line rounded-lg shadow-card;
+  }
+  .card-hover {
+    @apply transition-colors hover:border-line-2 hover:bg-panel-2;
+  }
+  .inset {
+    @apply bg-panel-2 border border-line rounded-md;
+  }
+
+  /* ---- Buttons ---- */
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-md border text-[13px] font-semibold
+           px-3 h-9 transition-colors whitespace-nowrap disabled:opacity-50 disabled:pointer-events-none
+           border-line-2 bg-panel text-ink hover:bg-panel-3;
+  }
+  .btn-sm {
+    @apply h-7 px-2.5 text-[12px] rounded;
+  }
+  .btn-primary {
+    @apply bg-primary border-primary text-white hover:bg-primary-strong hover:border-primary-strong;
+  }
+  .btn-danger {
+    @apply bg-danger border-danger text-white hover:brightness-95;
+  }
+  .btn-ghost {
+    @apply border-transparent bg-transparent text-ink-2 hover:bg-panel-3 hover:text-ink;
+  }
+  .btn-quiet {
+    @apply border-transparent bg-panel-3 text-ink-2 hover:bg-line;
+  }
+
+  /* ---- Chips / pills ---- */
+  .chip {
+    @apply inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-semibold
+           border border-line bg-panel-2 text-ink-2;
+  }
+  .chip-neutral { @apply border-line bg-panel-3 text-ink-2; }
+  .chip-info    { @apply border-primary-line bg-primary-wash text-primary-strong; }
+  .chip-warn    { @apply border-warn-line bg-warn-wash text-warn; }
+  .chip-danger  { @apply border-danger-line bg-danger-wash text-danger; }
+  .chip-success { @apply border-success-line bg-success-wash text-success; }
+
+  /* ---- Form controls ---- */
+  .field {
+    @apply w-full rounded-md border border-line-2 bg-panel px-3 py-2 text-[14px] text-ink
+           placeholder:text-ink-3 outline-none transition-shadow
+           focus:border-primary focus:ring-2 focus:ring-primary-wash;
+  }
+  .field-label {
+    @apply block text-[12.5px] font-semibold text-ink-2 mb-1;
+  }
+
+  /* ---- Data table ---- */
+  .data-table {
+    @apply w-full text-left text-[13px];
+  }
+  .data-table thead th {
+    @apply px-3 py-2 text-eyebrow uppercase text-ink-3 font-semibold border-b border-line bg-panel-2;
+  }
+  .data-table tbody td {
+    @apply px-3 py-2.5 border-b border-line text-ink-2 align-middle;
+  }
+  .data-table tbody tr:last-child td {
+    @apply border-b-0;
+  }
+  .data-table tbody tr {
+    @apply transition-colors;
+  }
+  .data-table.rows-link tbody tr:hover {
+    @apply bg-panel-2 cursor-pointer;
+  }
+
+  /* ---- Metric strip ---- */
+  .metric-strip {
+    @apply grid gap-px bg-line border border-line rounded-lg overflow-hidden;
+  }
+  .metric {
+    @apply bg-panel px-4 py-3 flex flex-col gap-0.5;
+  }
+  .metric-value {
+    @apply text-[22px] font-semibold leading-none text-ink;
+  }
+  .metric-label {
+    @apply text-[11.5px] text-ink-3 font-medium;
+  }
+
+  /* ---- Empty states ---- */
+  .empty-state {
+    @apply card flex flex-col items-center text-center gap-3 px-6 py-12;
+  }
+
+  /* ---- Key/value rows ---- */
+  .kv {
+    @apply flex flex-col gap-0.5 py-2;
+  }
+  .kv-label {
+    @apply text-[11.5px] uppercase tracking-wide text-ink-3 font-semibold;
+  }
+  .kv-value {
+    @apply text-[14px] text-ink;
+  }
+}
+
+@layer utilities {
+  .row-flash {
+    animation: rowFlash 1s ease-out both;
+  }
+  @keyframes rowFlash {
+    0% { background-color: theme("colors.primary-wash"); }
+    100% { background-color: transparent; }
+  }
+  .drawer-in {
+    animation: drawerIn 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  @keyframes drawerIn {
+    from { transform: translateX(16px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  .fade-in {
+    animation: fadeIn 0.18s ease-out both;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(2px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
+
+@media print {
+  .no-print { display: none !important; }
+}

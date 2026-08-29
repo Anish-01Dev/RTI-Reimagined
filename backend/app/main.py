@@ -112,3 +112,8 @@ app.include_router(evidence_router, prefix="/api/v1")
 
 # Remaining routers (cases, sync) are registered here as each API surface
 # is implemented, in the build order set out in docs/product/ROADMAP.md.
+
+if settings.environment != "production":
+    from app.api.v1.dev_tools import router as dev_tools_router
+
+    app.include_router(dev_tools_router, prefix="/api/v1")

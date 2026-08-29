@@ -13,7 +13,9 @@ node_modules/
 dist/
 build/
 .vite/
+.netlify/
 coverage/
+*.tsbuildinfo
 
 # Environment
 .env
