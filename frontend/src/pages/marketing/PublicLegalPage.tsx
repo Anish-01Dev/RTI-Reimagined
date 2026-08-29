@@ -4,36 +4,36 @@ import { LEGAL_RULES } from "@/domain/legalRules";
 
 export function PublicLegalPage() {
   return (
-    <div className="min-h-screen flex flex-col bg-background text-on-background">
+    <div className="min-h-screen flex flex-col bg-canvas">
       <TopNav />
-      <main className="flex-grow max-w-3xl mx-auto px-md md:px-lg py-3xl w-full">
-        <h1 className="text-3xl font-light text-on-background mb-sm">
-          RTI rights, timelines &amp; escalation
-        </h1>
-        <p className="text-on-surface-variant text-lg mb-2xl">
+      <main className="flex-1 max-w-reading mx-auto px-6 py-14 w-full">
+        <p className="eyebrow text-primary mb-2">RTI process reference</p>
+        <h1 className="text-display-sm mb-2">Rights, timelines &amp; escalation</h1>
+        <p className="text-[14px] text-ink-2 mb-8">
           Process guidance drawn from the Right to Information Act, 2005 — not
           legal advice. Once you're tracking a case, its own Legal tab applies
           these rules to that case's actual dates.
         </p>
-        <div className="flex flex-col gap-sm">
+        <div className="card divide-y divide-line">
           {LEGAL_RULES.map((rule) => (
-            <div
-              key={rule.id}
-              className="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg"
-            >
-              <div className="flex items-center justify-between flex-wrap gap-sm mb-1">
-                <h2 className="text-xl font-semibold text-on-surface">
-                  {rule.title}
-                </h2>
+            <div key={rule.id} className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[13.5px] font-semibold text-ink">
+                    {rule.title}
+                  </p>
+                  <p className="mono text-ink-3 mt-0.5">
+                    {rule.provision} · {rule.source}
+                  </p>
+                </div>
                 {rule.deadlineDays !== null && (
-                  <span className="text-label-caps text-label-caps bg-surface-container px-sm py-[2px] rounded-full border border-outline-variant text-on-surface-variant">
+                  <span className="chip chip-neutral shrink-0">
                     {rule.deadlineDays} days
                   </span>
                 )}
               </div>
-              <p className="text-on-surface-variant mb-sm">{rule.guidance}</p>
-              <p className="text-label-caps text-label-caps text-on-surface-variant">
-                {rule.provision} · {rule.source}
+              <p className="text-[13px] text-ink-2 mt-2 leading-relaxed">
+                {rule.guidance}
               </p>
             </div>
           ))}

@@ -1,282 +1,349 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { TopNav } from "@/components/TopNav";
 import { Footer } from "@/components/Footer";
-import { CaseStatusPill } from "@/components/case/CaseStatusPill";
-import { QrCode } from "@/components/QrCode";
 import { analyzeRequest } from "@/lib/applicationDoctor";
-import { getCase } from "@/domain/store";
-import { getSession } from "@/lib/demoIdentity";
-import { formatDate } from "@/lib/format";
 
-const HERO_CASE_ID = "SR-2026-A7F29C";
-const WEAK_QUESTION = "Why hasn't the road in Ward 17 been repaired?";
+const WEAK = "Why hasn't the road in Ward 17 been repaired?";
+
+const TRAIL = [
+  ["Created", "Citizen", "Request drafted and checked"],
+  ["Submitted", "Citizen", "Filed with Municipal Corporation"],
+  ["Acknowledged", "Authority", "Receipt issued, 2 days"],
+  ["Forwarded", "Authority", "Routed to Ward 17 engineering desk"],
+  ["Under review", "Authority", "Records located"],
+  ["Response received", "Authority", "Expenditure record attached"],
+  ["Verified", "System", "Checked against the original request"],
+];
 
 export function LandingPage() {
-  const navigate = useNavigate();
-  const loggedIn = Boolean(getSession());
-  const heroCase = getCase(HERO_CASE_ID);
-  const doctorPreview = analyzeRequest(WEAK_QUESTION);
-
-  function goApp() {
-    navigate(loggedIn ? "/app" : "/login");
-  }
+  const doctor = analyzeRequest(WEAK);
 
   return (
-    <div className="antialiased min-h-screen flex flex-col bg-background text-on-background">
+    <div className="min-h-screen flex flex-col bg-canvas">
       <TopNav />
-      <main className="flex-grow">
+      <main className="flex-1">
         {/* HERO */}
-        <section className="py-3xl md:py-[100px] px-md md:px-lg max-w-3xl mx-auto text-center">
-          <span className="inline-block px-4 py-1 rounded-full bg-primary-fixed text-on-primary-fixed font-label-caps text-label-caps tracking-widest uppercase mb-lg">
-            Build With India · Unkillable RTI
-          </span>
-          <h1 className="font-display-lg text-display-lg-mobile md:text-display-lg font-light text-on-background mb-md leading-tight">
-            Information shouldn't disappear into process.
-          </h1>
-          <p className="text-on-surface-variant text-lg max-w-2xl mx-auto mb-xl">
-            Government processes should not be the single source of truth for a
-            citizen's information journey. Suchna Rakshak preserves it
-            independently — from the question you asked to what you can prove
-            today.
-          </p>
-          <div className="flex flex-col md:flex-row items-center justify-center gap-md">
-            <button
-              onClick={goApp}
-              className="px-xl py-3 bg-primary text-on-primary rounded-full font-medium hover:bg-primary-container transition-colors"
-            >
-              {loggedIn ? "Go to your requests" : "Get started"}
-            </button>
-            <Link
-              to="/how-it-works"
-              className="px-xl py-3 border border-outline-variant text-on-surface-variant rounded-full font-medium hover:bg-surface-container transition-colors"
-            >
-              How it works
-            </Link>
-          </div>
-        </section>
-
-        {/* THE PROBLEM */}
-        <section className="py-2xl px-md md:px-lg max-w-3xl mx-auto border-t border-outline-variant">
-          <p className="text-label-caps text-label-caps text-error uppercase tracking-widest mb-sm">
-            The problem
-          </p>
-          <h2 className="text-2xl font-semibold text-on-background mb-md">
-            "Where is my application?" is the wrong question.
-          </h2>
-          <p className="text-on-surface-variant text-lg leading-relaxed">
-            Traditional RTI tracking answers where a request sits in a queue. It
-            cannot tell you what information you actually asked for, what
-            evidence exists, which deadlines are approaching, or what to do when
-            the government stays silent. The application gets tracked. The
-            information — the thing you actually wanted — does not.
-          </p>
-        </section>
-
-        {/* THE NEW MODEL */}
-        <section className="py-2xl px-md md:px-lg max-w-4xl mx-auto border-t border-outline-variant">
-          <p className="text-label-caps text-label-caps text-primary uppercase tracking-widest mb-sm">
-            The new model
-          </p>
-          <h2 className="text-2xl font-semibold text-on-background mb-lg">
-            Track the information journey, not the file.
-          </h2>
-          <div className="flex flex-col sm:flex-row items-stretch gap-sm">
-            {["Ask", "Track", "Preserve", "Verify", "Act"].map(
-              (step, i, arr) => (
-                <div key={step} className="flex items-center gap-sm flex-1">
-                  <div className="flex-1 bg-surface-container-lowest border border-outline-variant rounded-xl p-md text-center">
-                    <span className="font-semibold text-on-surface">
-                      {step}
-                    </span>
-                  </div>
-                  {i < arr.length - 1 && (
-                    <span className="material-symbols-outlined text-outline-variant hidden sm:block">
-                      arrow_forward
-                    </span>
-                  )}
-                </div>
-              ),
-            )}
-          </div>
-        </section>
-
-        {/* APPLICATION DOCTOR */}
-        <section className="py-2xl px-md md:px-lg max-w-4xl mx-auto border-t border-outline-variant grid grid-cols-1 md:grid-cols-2 gap-xl items-center">
-          <div>
-            <p className="text-label-caps text-label-caps text-primary uppercase tracking-widest mb-sm">
-              Before you file
-            </p>
-            <h2 className="text-2xl font-semibold text-on-background mb-md">
-              A weak question rarely gets a useful answer.
-            </h2>
-            <p className="text-on-surface-variant leading-relaxed mb-md">
-              Every request passes through Application Doctor before it's filed
-              — a deterministic quality check, not a chatbot. It catches the
-              difference between asking why something happened and asking for
-              the records that prove what happened.
-            </p>
-            <Link
-              to="/app/doctor"
-              className="text-primary font-medium hover:underline"
-            >
-              Try Application Doctor →
-            </Link>
-          </div>
-          <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg">
-            <p className="text-label-caps text-label-caps text-on-surface-variant mb-1">
-              Draft
-            </p>
-            <p className="text-on-surface italic mb-md">"{WEAK_QUESTION}"</p>
-            <div className="grid grid-cols-2 gap-sm mb-md text-body-sm">
-              <span className="text-on-surface-variant">
-                Clarity{" "}
-                <strong className="text-on-surface">
-                  {doctorPreview.clarity}
-                </strong>
-              </span>
-              <span className="text-on-surface-variant">
-                Specificity{" "}
-                <strong className="text-on-surface">
-                  {doctorPreview.specificity}
-                </strong>
-              </span>
-            </div>
-            <div className="border-t border-outline-variant pt-md">
-              <p className="text-label-caps text-label-caps text-tertiary mb-1">
-                Recommended
+        <section className="border-b border-line">
+          <div className="max-w-container-max mx-auto px-6 py-16 grid lg:grid-cols-[1fr_460px] gap-12 items-center">
+            <div>
+              <p className="eyebrow text-primary mb-3">
+                Reliability layer for the Right to Information Act, 2005
               </p>
-              <p className="text-on-surface text-body-sm">
-                {doctorPreview.suggestedRewrite}
+              <h1 className="text-display leading-[1.08] tracking-[-0.02em] mb-4 max-w-[16ch]">
+                Information shouldn't disappear into process.
+              </h1>
+              <p className="text-[15px] text-ink-2 leading-relaxed max-w-[52ch] mb-6">
+                A government portal tells you where your application sits in a
+                queue. It can't tell you what you asked for, what evidence
+                exists, which deadline is next, or what to do when the reply
+                never comes. Suchna Rakshak keeps the whole information journey
+                as a citizen-owned, verifiable trail.
               </p>
-            </div>
-          </div>
-        </section>
-
-        {/* PRODUCT IN ACTION — real seeded case */}
-        {heroCase && (
-          <section className="py-2xl px-md md:px-lg max-w-4xl mx-auto border-t border-outline-variant">
-            <p className="text-label-caps text-label-caps text-primary uppercase tracking-widest mb-sm">
-              A real case workspace
-            </p>
-            <h2 className="text-2xl font-semibold text-on-background mb-lg">
-              Every request becomes a persistent information trail.
-            </h2>
-            <div className="bg-surface-container-lowest border border-outline-variant rounded-xl overflow-hidden">
-              <div className="p-lg border-b border-outline-variant flex items-center justify-between flex-wrap gap-sm">
-                <div>
-                  <div className="flex items-center gap-sm mb-1">
-                    <CaseStatusPill status={heroCase.status} />
-                    <span className="text-label-caps text-label-caps text-on-surface-variant">
-                      {heroCase.suchnaId}
-                    </span>
-                  </div>
-                  <p className="font-semibold text-on-surface">
-                    {heroCase.subject}
-                  </p>
-                  <p className="text-body-sm text-on-surface-variant">
-                    {heroCase.authorityName}
-                  </p>
-                </div>
-                <span className="text-body-sm text-on-surface-variant">
-                  {heroCase.events.length} events · {heroCase.evidence.length}{" "}
-                  evidence records
-                </span>
+              <div className="flex items-center gap-2.5">
+                <Link to="/login" className="btn btn-primary">
+                  Create an RTI
+                </Link>
+                <Link to="/how-it-works" className="btn">
+                  Explore how it works
+                </Link>
               </div>
-              <div className="p-lg grid grid-cols-1 sm:grid-cols-2 gap-md">
-                <div className="p-1.5 bg-white border border-outline-variant rounded-lg w-fit">
-                  <QrCode value={heroCase.suchnaId} size={90} />
+            </div>
+
+            {/* Composed product visual */}
+            <div className="card shadow-raised overflow-hidden">
+              <div className="px-4 py-2.5 border-b border-line bg-panel-2 flex items-center gap-2">
+                <span className="chip chip-success">
+                  <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                  Response received
+                </span>
+                <span className="mono text-ink-3">SR-2026-A7F29C</span>
+              </div>
+              <div className="p-4">
+                <p className="text-[13.5px] font-semibold text-ink">
+                  Road repair expenditure — Ward 17
+                </p>
+                <p className="meta mb-3">
+                  Municipal Corporation of Delhi · Public Works Department
+                </p>
+                <div className="grid grid-cols-4 gap-px bg-line border border-line rounded-md overflow-hidden mb-3">
+                  {[
+                    ["Events", "7"],
+                    ["Evidence", "3"],
+                    ["Deadline", "Met"],
+                    ["Integrity", "Valid"],
+                  ].map(([l, v]) => (
+                    <div key={l} className="bg-panel px-2.5 py-2">
+                      <p className="text-[9.5px] uppercase tracking-wide text-ink-3">
+                        {l}
+                      </p>
+                      <p className="text-[13px] font-semibold text-ink">{v}</p>
+                    </div>
+                  ))}
                 </div>
-                <ul className="text-body-sm text-on-surface-variant space-y-1">
-                  {heroCase.events.slice(0, 4).map((e) => (
-                    <li key={e.id}>
-                      <span className="text-on-surface font-medium">
-                        {e.type.replace(/_/g, " ")}
-                      </span>{" "}
-                      — {formatDate(e.timestamp)}
+                <ol className="flex flex-col gap-1.5">
+                  {TRAIL.slice(0, 4).map(([t, who]) => (
+                    <li key={t} className="flex items-center gap-2 text-[12px]">
+                      <span className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+                      <span className="text-ink font-medium">{t}</span>
+                      <span className="text-ink-3">· {who}</span>
                     </li>
                   ))}
-                </ul>
+                </ol>
+                <div className="inset p-2.5 mt-3 flex items-center gap-2">
+                  <span className="material-symbols-outlined text-[16px] text-primary">
+                    bolt
+                  </span>
+                  <span className="text-[12px] text-ink-2">
+                    Next action: review response against original request
+                  </span>
+                </div>
               </div>
             </div>
-          </section>
-        )}
-
-        {/* TRUST / UNKILLABLE RTI */}
-        <section className="py-2xl px-md md:px-lg max-w-3xl mx-auto border-t border-outline-variant">
-          <p className="text-label-caps text-label-caps text-primary uppercase tracking-widest mb-sm">
-            The moat
-          </p>
-          <h2 className="text-2xl font-semibold text-on-background mb-md">
-            The portal can change. Your trail remains with you.
-          </h2>
-          <p className="text-on-surface-variant text-lg leading-relaxed mb-md">
-            Every case carries a hash-chained event log a citizen can verify
-            independently of this website — download it, print it, or hand over
-            a QR that resolves to an integrity check, not a marketing claim. We
-            call this <strong>tamper-evident</strong>, not blockchain: change or
-            reorder an event, and the chain after it stops matching.
-          </p>
-          <Link
-            to="/unkillable-rti"
-            className="text-primary font-medium hover:underline"
-          >
-            How the citizen trail works →
-          </Link>
-        </section>
-
-        {/* LEGAL / ACTION */}
-        <section className="py-2xl px-md md:px-lg max-w-3xl mx-auto border-t border-outline-variant">
-          <p className="text-label-caps text-label-caps text-error uppercase tracking-widest mb-sm">
-            When the law is ignored
-          </p>
-          <h2 className="text-2xl font-semibold text-on-background mb-md">
-            Silence has a legal consequence. The product treats it like one.
-          </h2>
-          <p className="text-on-surface-variant text-lg leading-relaxed">
-            When the statutory 30-day window lapses under Section 7(1) of the
-            RTI Act, 2005, the case doesn't just say "overdue" — it surfaces the
-            next legal step, drafted from the case's own facts, ready for the
-            citizen to review and file under Section 19(1).
-          </p>
-        </section>
-
-        {/* GOVERNMENT SIDE */}
-        <section className="py-2xl px-md md:px-lg max-w-4xl mx-auto border-t border-outline-variant bg-[#0f1720] text-slate-100 rounded-2xl">
-          <div className="p-2xl">
-            <p className="text-[11px] uppercase tracking-widest text-slate-400 mb-sm">
-              The other side of the desk
-            </p>
-            <h2 className="text-2xl font-semibold text-white mb-md">
-              The same information infrastructure, run as operations.
-            </h2>
-            <p className="text-slate-300 leading-relaxed mb-lg max-w-2xl">
-              A Public Information Officer sees the identical request ledger —
-              cleanly routed, complete, with the same deadline clock — inside a
-              case-management console built for their workload: a response
-              pipeline, a compliance view, and an audit trail of every action
-              taken.
-            </p>
-            <Link
-              to="/login"
-              className="text-white font-medium hover:underline"
-            >
-              Government / Official Login →
-            </Link>
           </div>
         </section>
 
-        {/* FINAL THESIS */}
-        <section className="py-3xl px-md md:px-lg max-w-2xl mx-auto text-center border-t border-outline-variant">
-          <p className="text-2xl font-light text-on-background leading-snug">
-            Other systems track whether an application exists.
-            <br />
-            <span className="font-semibold text-primary">
-              Suchna Rakshak preserves what happened to the information journey.
-            </span>
-          </p>
+        {/* TRADITIONAL vs SUCHNA */}
+        <Section eyebrow="The shift" title="Track the information, not the file.">
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="card p-5">
+              <p className="eyebrow mb-3">Traditional tracking</p>
+              <ol className="flex flex-col gap-2">
+                {["Application number", "Portal status", "Wait"].map((s) => (
+                  <li key={s} className="flex items-center gap-2 text-[13px] text-ink-2">
+                    <span className="material-symbols-outlined text-[16px] text-ink-3">
+                      radio_button_unchecked
+                    </span>
+                    {s}
+                  </li>
+                ))}
+              </ol>
+            </div>
+            <div className="card p-5 border-primary-line">
+              <p className="eyebrow text-primary mb-3">Suchna Rakshak</p>
+              <ol className="flex flex-col gap-2">
+                {["Request", "Evidence", "Timeline", "Deadline", "Response", "Citizen trail", "Action"].map(
+                  (s) => (
+                    <li key={s} className="flex items-center gap-2 text-[13px] text-ink">
+                      <span className="material-symbols-outlined text-[16px] text-success">
+                        check_circle
+                      </span>
+                      {s}
+                    </li>
+                  ),
+                )}
+              </ol>
+            </div>
+          </div>
+        </Section>
+
+        {/* APPLICATION DOCTOR */}
+        <Section
+          eyebrow="Before you file"
+          title="A weak question rarely gets a useful answer."
+        >
+          <div className="grid md:grid-cols-3 gap-4 items-stretch">
+            <div className="card p-4">
+              <p className="eyebrow mb-2">Draft</p>
+              <p className="font-serif text-[14px] text-ink leading-relaxed">
+                “{WEAK}”
+              </p>
+              <div className="flex gap-4 mt-3 text-[12px] text-ink-3">
+                <span>
+                  Specificity{" "}
+                  <strong className="text-danger">{doctor.specificity}</strong>
+                </span>
+                <span>
+                  Clarity <strong className="text-ink">{doctor.clarity}</strong>
+                </span>
+              </div>
+            </div>
+            <div className="card p-4">
+              <p className="eyebrow mb-2">Application Doctor</p>
+              <ul className="flex flex-col gap-1.5 text-[12.5px] text-ink-2">
+                <li className="flex gap-1.5">
+                  <span className="material-symbols-outlined text-[15px] text-warn">warning</span>
+                  Asks for a reason, not a record
+                </li>
+                <li className="flex gap-1.5">
+                  <span className="material-symbols-outlined text-[15px] text-warn">warning</span>
+                  No time period
+                </li>
+                <li className="flex gap-1.5">
+                  <span className="material-symbols-outlined text-[15px] text-primary">tips_and_updates</span>
+                  Request the expenditure records instead
+                </li>
+              </ul>
+            </div>
+            <div className="card p-4 border-success-line">
+              <p className="eyebrow text-success mb-2">Revised</p>
+              <p className="font-serif text-[13.5px] text-ink leading-relaxed">
+                {doctor.suggestedRewrite}
+              </p>
+            </div>
+          </div>
+        </Section>
+
+        {/* THE TRAIL */}
+        <Section
+          eyebrow="The information trail"
+          title="Every request becomes a forensic, timestamped record."
+        >
+          <div className="card overflow-hidden">
+            <ol className="divide-y divide-line">
+              {TRAIL.map(([t, who, detail], i) => (
+                <li key={t} className="flex items-center gap-3 px-4 py-2.5">
+                  <span className="mono text-ink-3 w-6 shrink-0">
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  <span className="text-[13px] font-medium text-ink w-40 shrink-0">
+                    {t}
+                  </span>
+                  <span className="chip chip-neutral shrink-0">{who}</span>
+                  <span className="text-[12.5px] text-ink-3 truncate">{detail}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </Section>
+
+        {/* CITIZEN RECORD */}
+        <Section
+          eyebrow="The moat"
+          title="The portal can change. Your trail stays with you."
+        >
+          <div className="grid md:grid-cols-[1fr_320px] gap-4">
+            <div className="card p-5">
+              <p className="text-[14px] text-ink-2 leading-relaxed">
+                Each case carries a hash-chained event log, computed with the
+                browser's own SHA-256. Reorder or edit any event and every hash
+                after it stops matching. It is <strong className="text-ink">tamper-evident</strong>,
+                not blockchain — a record a citizen can download, print, carry
+                offline, or hand over as a QR that resolves to an independent
+                integrity check.
+              </p>
+              <Link
+                to="/unkillable-rti"
+                className="text-[13px] text-primary font-medium hover:underline mt-3 inline-block"
+              >
+                How the citizen trail works →
+              </Link>
+            </div>
+            <div className="card p-4">
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  ["Suchna ID", "SR-2026-A7F29C"],
+                  ["Trail version", "v7"],
+                  ["Events", "7"],
+                  ["Evidence", "3"],
+                  ["Integrity", "Valid"],
+                  ["Offline copy", "Synced"],
+                ].map(([l, v]) => (
+                  <div key={l}>
+                    <p className="kv-label">{l}</p>
+                    <p className="text-[13px] font-semibold text-ink mono">{v}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Section>
+
+        {/* LEGAL / ACTION */}
+        <Section
+          eyebrow="When the law is ignored"
+          title="Silence has a legal consequence. The product treats it like one."
+        >
+          <div className="grid sm:grid-cols-3 gap-4">
+            <div className="card p-4">
+              <p className="text-[22px] font-semibold text-warn tnum">3 days</p>
+              <p className="meta">remaining on the Section 7(1) window</p>
+            </div>
+            <div className="card p-4">
+              <p className="text-[22px] font-semibold text-danger tnum">18 days</p>
+              <p className="meta">overdue — First Appeal now available</p>
+            </div>
+            <div className="card p-4 border-primary-line">
+              <p className="text-[13px] font-semibold text-ink">Next action</p>
+              <p className="meta">
+                Prepare First Appeal under Section 19(1), drafted from the case's
+                own facts
+              </p>
+            </div>
+          </div>
+        </Section>
+
+        {/* GOVERNMENT */}
+        <section className="bg-gov-bg">
+          <div className="max-w-container-max mx-auto px-6 py-14">
+            <p className="text-[11px] uppercase tracking-[0.08em] font-semibold text-gov-ink-3 mb-2">
+              The other side of the desk
+            </p>
+            <h2 className="text-[24px] font-semibold text-gov-ink mb-3">
+              The same infrastructure, run as operations.
+            </h2>
+            <p className="text-[14px] text-gov-ink-2 max-w-[56ch] leading-relaxed mb-6">
+              A Public Information Officer sees the identical request — cleanly
+              routed, on the same clock — inside a case-management console built
+              for their workload: a response pipeline, compliance view, and an
+              audit trail of every action taken.
+            </p>
+            <div
+              className="grid gap-px bg-gov-line border border-gov-line rounded-lg overflow-hidden max-w-xl"
+              style={{ gridTemplateColumns: "repeat(4,minmax(0,1fr))" }}
+            >
+              {[
+                ["18", "Open"],
+                ["4", "Due today"],
+                ["2", "Overdue"],
+                ["7", "Awaiting review"],
+              ].map(([v, l]) => (
+                <div key={l} className="bg-gov-panel px-4 py-3">
+                  <p className="text-[20px] font-semibold text-gov-ink tnum">{v}</p>
+                  <p className="text-[11px] text-gov-ink-3">{l}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* THESIS */}
+        <section className="border-t border-line">
+          <div className="max-w-container-max mx-auto px-6 py-16 text-center">
+            <p className="text-[22px] text-ink-2 leading-snug max-w-[40ch] mx-auto">
+              Other systems track whether an application exists.{" "}
+              <span className="text-ink font-semibold">
+                Suchna Rakshak preserves what happened to the information.
+              </span>
+            </p>
+            <Link to="/login" className="btn btn-primary mt-6">
+              Get started
+            </Link>
+          </div>
         </section>
       </main>
       <Footer />
     </div>
+  );
+}
+
+function Section({
+  eyebrow,
+  title,
+  children,
+}: {
+  eyebrow: string;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="border-b border-line">
+      <div className="max-w-container-max mx-auto px-6 py-12">
+        <p className="eyebrow text-primary mb-2">{eyebrow}</p>
+        <h2 className="text-[24px] font-semibold tracking-tight text-ink mb-6 max-w-[26ch]">
+          {title}
+        </h2>
+        {children}
+      </div>
+    </section>
   );
 }

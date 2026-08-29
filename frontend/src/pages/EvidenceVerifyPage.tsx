@@ -1,183 +1,141 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { TopNav } from "@/components/TopNav";
 import { Footer } from "@/components/Footer";
 import { buildTrailPayload, verifyTrail } from "@/domain/integrity";
 import { getCase } from "@/domain/store";
 import type { CaseRecord } from "@/domain/types";
-import { formatDateTime } from "@/lib/format";
 import { getOfflineRecord } from "@/offline/citizenRecord";
+import { formatDateTime } from "@/lib/format";
 
-type State = { phase: "loading" } | { phase: "done"; record: CaseRecord; valid: boolean };
+type State =
+  | { phase: "loading" }
+  | { phase: "done"; record: CaseRecord; valid: boolean; source: string };
 
-/** Public, unauthenticated verification — anyone with a Suchna ID or the
- * QR from a case's Unkillable RTI tab can confirm the trail's hash chain
- * is intact, without logging in and without depending on the citizen's
- * or the authority's own view of the case. */
+/**
+ * Public, unauthenticated verification. Anyone with a Suchna ID or the QR
+ * from a case's Citizen Trail tab can confirm the hash chain is intact —
+ * without logging in, and (via the offline copy) without this app's
+ * server being reachable.
+ */
 export function EvidenceVerifyPage() {
   const { id } = useParams<{ id: string }>();
-  // Prefer the citizen-held copy created from the QR/offline record. If the
-  // presenter has not saved one yet, fall back to the active demo case store.
-  const offline = id ? getOfflineRecord(id) : undefined;
-  const storeRecord = id ? getCase(id) : undefined;
-  const record =
-    offline && id
-      ? ({
-          suchnaId: id,
-          backendId: null,
-          subject: offline.subject,
-          authorityName: offline.authorityName,
-          department: "",
-          citizenName: "",
-          originalRequest: "",
-          status: offline.payload.status as CaseRecord["status"],
-          submittedAt: null,
-          responseDueAt: null,
-          createdAt: offline.savedAt,
-          updatedAt: offline.savedAt,
-          trailVersion: offline.payload.trailVersion,
-          govStage: "RECEIVED",
-          versions: [],
-          events: offline.events,
-          evidence: offline.evidence,
-          audit: [],
-          reviewChecklist: {
-            requestUnderstood: false,
-            recordsIdentified: false,
-            documentsLocated: false,
-            exemptionReviewDone: false,
-            responsePrepared: false,
-            responseVerified: false,
-            responseReleased: false,
-          },
-          appealReason: null,
-          category: "",
-        } satisfies CaseRecord)
-      : storeRecord;
   const [state, setState] = useState<State>({ phase: "loading" });
 
   useEffect(() => {
-    if (!record) return;
-    verifyTrail(record).then((valid) => setState({ phase: "done", record, valid }));
-  }, [record]);
+    if (!id) return;
+    const live = getCase(id);
+    if (live) {
+      verifyTrail(live).then((valid) =>
+        setState({ phase: "done", record: live, valid, source: "live workspace" }),
+      );
+      return;
+    }
+    const offline = getOfflineRecord(id);
+    if (offline) {
+      const asRecord = {
+        suchnaId: offline.payload.suchnaId,
+        subject: offline.subject,
+        authorityName: offline.authorityName,
+        status: offline.payload.status,
+        trailVersion: offline.payload.trailVersion,
+        events: offline.events,
+        evidence: offline.evidence,
+      } as unknown as CaseRecord;
+      verifyTrail(asRecord).then((valid) =>
+        setState({ phase: "done", record: asRecord, valid, source: "offline copy" }),
+      );
+      return;
+    }
+    setState({ phase: "loading" });
+  }, [id]);
+
+  const notFound =
+    id && !getCase(id) && !getOfflineRecord(id);
 
   return (
-    <div className="bg-surface text-on-surface min-h-screen flex flex-col antialiased">
+    <div className="min-h-screen flex flex-col bg-canvas">
       <TopNav minimal />
-      <main className="flex-grow flex flex-col items-center justify-center p-md md:p-3xl max-w-container-max mx-auto w-full">
-        <div className="bg-surface-container-lowest w-full max-w-2xl rounded-xl border border-outline-variant shadow-sm overflow-hidden flex flex-col">
-          {!record && (
-            <div className="p-xl text-center">
-              <span className="material-symbols-outlined text-4xl text-error mb-md block">error</span>
-              <p className="text-on-surface-variant">No trail found for this Suchna ID.</p>
+      <main className="flex-1 flex items-center justify-center px-6 py-12">
+        <div className="w-full max-w-lg">
+          {notFound ? (
+            <div className="card p-8 text-center">
+              <span className="material-symbols-outlined text-[32px] text-ink-3">
+                help
+              </span>
+              <p className="card-title mt-2">No trail found</p>
+              <p className="text-[13px] text-ink-3 mt-1">
+                There's no record for <span className="mono">{id}</span> in this
+                browser. Open it on the device that holds the citizen copy.
+              </p>
+              <Link to="/" className="btn mt-4">
+                Back to home
+              </Link>
             </div>
-          )}
-
-          {record && state.phase === "loading" && (
-            <div className="p-3xl text-center text-on-surface-variant">Verifying…</div>
-          )}
-
-          {record && state.phase === "done" && (
-            <>
+          ) : state.phase === "loading" ? (
+            <div className="card p-10 text-center text-[13px] text-ink-3">
+              Verifying…
+            </div>
+          ) : (
+            <div className="card overflow-hidden">
               <div
-                className={`p-xl flex flex-col items-center justify-center text-center border-b border-outline-variant ${
-                  state.valid
-                    ? "bg-tertiary-container/10"
-                    : "bg-error-container/40"
+                className={`p-6 text-center border-b border-line ${
+                  state.valid ? "bg-success-wash" : "bg-danger-wash"
                 }`}
               >
-                <div
-                  className={`h-16 w-16 rounded-full flex items-center justify-center mb-md shadow-sm ${
-                    state.valid
-                      ? "bg-tertiary-container text-on-tertiary"
-                      : "bg-error text-on-error"
+                <span
+                  className={`grid place-items-center h-14 w-14 rounded-full mx-auto mb-3 ${
+                    state.valid ? "bg-success text-white" : "bg-danger text-white"
                   }`}
                 >
-                  <span className="material-symbols-outlined text-[32px] filled-icon">
-                    {state.valid ? "check_circle" : "gpp_bad"}
+                  <span className="material-symbols-outlined text-[28px] filled-icon">
+                    {state.valid ? "verified" : "gpp_bad"}
                   </span>
-                </div>
-                <h1 className="font-headline-md text-headline-md text-tertiary-fixed-variant mb-xs">
-                  {state.valid
-                    ? "Suchna Trail Verified"
-                    : "Verification Failed"}
+                </span>
+                <h1 className="text-title">
+                  {state.valid ? "Citizen trail verified" : "Verification failed"}
                 </h1>
-                <p className="text-on-surface-variant max-w-md">
+                <p className="text-[12.5px] text-ink-2 mt-1 max-w-sm mx-auto">
                   {state.valid
-                    ? "This trail's hash chain is intact — nothing in its recorded event history has been altered."
+                    ? "The hash chain recomputed from this record's event history is intact — nothing has been altered."
                     : "The recomputed hash chain does not match the stored trail. Its event history may have been edited."}
                 </p>
               </div>
 
-              <div className="p-xl space-y-lg">
-                {(() => {
-                  const payload = buildTrailPayload(state.record);
-                  return (
-                    <>
-                      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-md pb-lg border-b border-surface-variant">
-                        <div>
-                          <p className="text-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest mb-1">
-                            Suchna ID
-                          </p>
-                          <p className="text-headline-md font-headline-md text-on-surface">
-                            {payload.suchnaId}
-                          </p>
-                        </div>
-                        <div className="inline-flex items-center gap-xs px-sm py-1 bg-tertiary-container/10 text-tertiary-fixed-variant rounded-full border border-tertiary-container/20">
-                          <span className="material-symbols-outlined text-[16px] filled-icon">
-                            verified
-                          </span>
-                          <span className="text-status-label font-status-label">
-                            Trail v{payload.trailVersion}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-md pb-lg border-b border-surface-variant text-sm">
-                        <Stat
-                          label="Events"
-                          value={String(payload.eventCount)}
-                        />
-                        <Stat
-                          label="Status"
-                          value={payload.status.replace(/_/g, " ")}
-                        />
-                        <Stat label="Authority" value={payload.authority} />
-                        <Stat
-                          label="Verified against"
-                          value="Citizen-held trail"
-                        />
-                      </div>
-
+              {(() => {
+                const p = buildTrailPayload(state.record);
+                return (
+                  <div className="p-5 flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest mb-1">
-                          Record hash
-                        </p>
-                        <p className="font-mono text-body-sm text-on-surface break-all">
-                          {payload.hash ?? "—"}
-                        </p>
+                        <p className="kv-label">Suchna ID</p>
+                        <p className="text-title mono">{p.suchnaId}</p>
                       </div>
-
-                      <p className="text-label-caps text-label-caps text-on-surface-variant">
-                        Checked {formatDateTime(payload.lastVerified)}
-                      </p>
-                    </>
-                  );
-                })()}
-              </div>
-
-              <div className="p-lg bg-surface-bright border-t border-outline-variant flex justify-center">
-                <button
-                  className="bg-primary text-on-primary font-status-label text-status-label px-lg py-sm rounded-lg hover:bg-primary-fixed-variant transition-colors flex items-center gap-xs shadow-sm"
-                  onClick={() => window.print()}
-                >
-                  <span className="material-symbols-outlined text-[18px]">
-                    print
-                  </span>
-                  Print Verification
-                </button>
-              </div>
-            </>
+                      <span className="chip chip-success">Trail v{p.trailVersion}</span>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <Stat label="Events" value={String(p.eventCount)} />
+                      <Stat label="Status" value={p.status.replace(/_/g, " ")} />
+                      <Stat label="Verified via" value={state.source} />
+                      <Stat label="Checked" value={formatDateTime(p.lastVerified)} />
+                    </div>
+                    <div>
+                      <p className="kv-label">Record hash</p>
+                      <p className="mono text-ink break-all">{p.hash ?? "—"}</p>
+                    </div>
+                    <p className="meta">
+                      This record matches the integrity information stored in the
+                      citizen-held trail. It is a tamper-evidence check, not a
+                      statement about the accuracy of the government's response.
+                    </p>
+                    <button onClick={() => window.print()} className="btn btn-sm self-start">
+                      <span className="material-symbols-outlined text-[16px]">print</span>
+                      Print verification
+                    </button>
+                  </div>
+                );
+              })()}
+            </div>
           )}
         </div>
       </main>
@@ -189,10 +147,8 @@ export function EvidenceVerifyPage() {
 function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest mb-1">
-        {label}
-      </p>
-      <p className="text-on-surface">{value}</p>
+      <p className="kv-label">{label}</p>
+      <p className="text-[13px] text-ink capitalize">{value}</p>
     </div>
   );
 }

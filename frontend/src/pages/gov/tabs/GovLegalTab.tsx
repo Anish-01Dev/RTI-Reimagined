@@ -1,4 +1,5 @@
 import { useOutletContext } from "react-router-dom";
+import { GovCard } from "@/components/gov/GovUI";
 import { daysRemainingFor } from "@/domain/actionEngine";
 import { legalRuleForStage, type CaseStage } from "@/domain/legalRules";
 import type { CaseRecord } from "@/domain/types";
@@ -7,78 +8,92 @@ function stageFor(record: CaseRecord): CaseStage {
   if (record.status === "OVERDUE") return "OVERDUE";
   if (record.status === "FIRST_APPEAL") return "FIRST_APPEAL";
   if (record.status === "RESPONSE_RELEASED") return "RESPONSE_RECEIVED";
-  const remaining = daysRemainingFor(record);
-  if (remaining !== null && remaining <= 5) return "RESPONSE_DUE_SOON";
+  const r = daysRemainingFor(record);
+  if (r !== null && r <= 5) return "RESPONSE_DUE_SOON";
   return "SUBMITTED";
 }
 
+const REVIEW = [
+  "No Section 8/9 exemption applies to the records requested",
+  "The responding department holds the requested records directly",
+  "The response addresses every item in the original request",
+  "Third-party information, if any, has been handled under Section 11",
+];
+
 export function GovLegalTab() {
   const record = useOutletContext<CaseRecord>();
-  const remaining = daysRemainingFor(record);
+  const rem = daysRemainingFor(record);
   const rule = legalRuleForStage(stageFor(record));
 
   return (
-    <div className="flex flex-col gap-lg">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-md">
-        <Stat label="Status" value={record.status.replace(/_/g, " ")} />
-        <Stat
-          label={
-            remaining !== null && remaining < 0
-              ? "Days overdue"
-              : "Days remaining"
-          }
-          value={remaining !== null ? String(Math.abs(remaining)) : "—"}
+    <div className="flex flex-col gap-4">
+      <div
+        className="grid gap-px bg-gov-line border border-gov-line rounded-lg overflow-hidden"
+        style={{ gridTemplateColumns: "repeat(4,minmax(0,1fr))" }}
+      >
+        <Cell label="Status" value={record.status.replace(/_/g, " ").toLowerCase()} />
+        <Cell
+          label={rem !== null && rem < 0 ? "Days overdue" : "Days remaining"}
+          value={rem !== null ? String(Math.abs(rem)) : "—"}
+          tone={rem !== null && rem < 0 ? "danger" : undefined}
         />
-        <Stat label="Process step" value={rule?.provision ?? "—"} />
-        <Stat
-          label="Required action"
-          value={rule?.recommendedAction ?? "None"}
-        />
+        <Cell label="Provision" value={rule?.provision ?? "—"} />
+        <Cell label="Required action" value={rule?.recommendedAction ?? "None"} />
       </div>
 
       {rule && (
-        <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg">
-          <p className="text-label-caps text-label-caps text-primary uppercase tracking-widest mb-sm">
+        <GovCard className="p-4">
+          <p className="text-[11px] uppercase tracking-[0.08em] font-semibold text-blue-300 mb-1.5">
             Process guidance — not legal advice
           </p>
-          <h3 className="font-headline-md text-headline-md !text-lg text-on-surface mb-1">
-            {rule.title}
-          </h3>
-          <p className="text-on-surface-variant mb-sm">{rule.guidance}</p>
-          <p className="text-label-caps text-label-caps text-on-surface-variant">
+          <p className="text-[14px] font-semibold text-gov-ink">{rule.title}</p>
+          <p className="text-[12.5px] text-gov-ink-2 mt-1 leading-relaxed">
+            {rule.guidance}
+          </p>
+          <p className="text-[11px] font-mono text-gov-ink-3 mt-2">
             {rule.provision} · {rule.source}
           </p>
-        </div>
+        </GovCard>
       )}
 
-      <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg">
-        <p className="text-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest mb-sm">
-          Potential review items
+      <GovCard className="p-4">
+        <p className="text-[11px] uppercase tracking-[0.08em] font-semibold text-gov-ink-3 mb-2.5">
+          Compliance review items
         </p>
-        <ul className="list-disc list-inside text-on-surface-variant space-y-1">
-          <li>
-            Confirm no Section 8/9 exemption applies to the records requested.
-          </li>
-          <li>
-            Confirm the responding department holds the requested records
-            directly.
-          </li>
-          <li>
-            Confirm the response addresses every item in the original request.
-          </li>
+        <ul className="flex flex-col gap-1.5">
+          {REVIEW.map((r) => (
+            <li key={r} className="flex gap-2 text-[12.5px] text-gov-ink-2">
+              <span className="material-symbols-outlined text-[15px] text-gov-ink-3 mt-0.5">
+                check_box_outline_blank
+              </span>
+              {r}
+            </li>
+          ))}
         </ul>
-      </div>
+      </GovCard>
     </div>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Cell({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: "danger";
+}) {
   return (
-    <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-md">
-      <p className="text-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest mb-1">
+    <div className="bg-gov-panel px-3.5 py-3">
+      <p className="text-[10.5px] uppercase tracking-wide text-gov-ink-3 font-semibold">
         {label}
       </p>
-      <p className="text-on-surface font-medium">{value}</p>
+      <p
+        className={`text-[13px] font-semibold mt-0.5 capitalize ${tone === "danger" ? "text-red-400" : "text-gov-ink"}`}
+      >
+        {value}
+      </p>
     </div>
   );
 }

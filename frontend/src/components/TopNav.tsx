@@ -1,86 +1,58 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useI18n } from "@/lib/i18n";
-import { endSession, getSession } from "@/lib/demoIdentity";
+import { getSession } from "@/lib/demoIdentity";
 import { LanguageSwitch } from "@/components/LanguageSwitch";
+
+const LINKS = [
+  { to: "/how-it-works", label: "How it works" },
+  { to: "/why-suchna", label: "Why Suchna" },
+  { to: "/unkillable-rti", label: "Citizen trail" },
+  { to: "/legal", label: "RTI reference" },
+];
 
 export function TopNav({ minimal = false }: { minimal?: boolean }) {
   const { t } = useI18n();
   const navigate = useNavigate();
   const session = getSession();
 
-  if (minimal) {
-    return (
-      <header className="bg-surface border-b border-outline-variant shadow-sm w-full py-4 px-lg md:px-3xl flex justify-between items-center h-16 shrink-0">
-        <Link
-          to="/"
-          className="font-headline-md text-headline-md font-bold text-primary"
-        >
-          {t("appName")}
-        </Link>
-        <LanguageSwitch compact />
-      </header>
-    );
-  }
-
   return (
-    <header className="bg-surface docked full-width top-0 sticky z-50 border-b border-outline-variant shadow-sm">
-      <div className="flex justify-between items-center w-full px-lg md:px-3xl max-w-container-max mx-auto h-16">
-        <Link
-          to="/"
-          className="font-headline-md text-headline-md font-bold text-primary flex items-center gap-sm"
-        >
-          {t("appName")}
+    <header className="sticky top-0 z-40 bg-canvas/85 backdrop-blur border-b border-line">
+      <div className="max-w-container-max mx-auto px-6 h-topbar flex items-center justify-between gap-4">
+        <Link to="/" className="flex items-center gap-2 shrink-0">
+          <span className="grid place-items-center h-6 w-6 rounded bg-primary text-white text-[13px] font-bold">
+            सू
+          </span>
+          <span className="font-semibold text-[14.5px] tracking-tight">
+            {t("appName")}
+          </span>
         </Link>
-        <nav className="hidden md:flex items-center gap-2">
-          <Link
-            to="/how-it-works"
-            className="text-on-surface-variant text-[11px] font-medium hover:text-primary transition-colors"
-          >
-            {t("navHowItWorks")}
-          </Link>
-          {session ? (
-            <>
+
+        {!minimal && (
+          <nav className="hidden md:flex items-center gap-6">
+            {LINKS.map((l) => (
               <Link
-                to="/app"
-                className="text-on-surface-variant text-[11px] font-medium hover:text-primary transition-colors"
+                key={l.to}
+                to={l.to}
+                className="text-[12.5px] font-medium text-ink-2 hover:text-ink"
               >
-                {t("navDashboard")}
+                {l.label}
               </Link>
-            </>
-          ) : (
-            <Link
-              to="/login"
-              className="text-on-surface-variant text-[11px] font-medium hover:text-primary transition-colors"
-            >
-              {t("navLogin")}
-            </Link>
-          )}
-        </nav>
-        <div className="flex items-center gap-2">
+            ))}
+          </nav>
+        )}
+
+        <div className="flex items-center gap-2.5">
           <LanguageSwitch compact />
-          <button
-            className="p-2 text-on-surface-variant hover:text-primary transition-colors rounded-full hover:bg-surface-container"
-            aria-label="Notifications"
-          >
-            <span className="material-symbols-outlined">notifications</span>
-          </button>
           {session ? (
             <button
-              onClick={() => {
-                endSession();
-                navigate("/");
-              }}
-              className="w-8 h-8 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center text-status-label font-semibold border border-outline-variant"
-              title={`${session.name} — ${t("navLogout")}`}
+              onClick={() => navigate(session.role === "CITIZEN" ? "/app" : "/gov")}
+              className="btn btn-sm btn-primary"
             >
-              {session.name.charAt(0)}
+              Open workspace
             </button>
           ) : (
-            <Link
-              to="/login"
-              className="px-3 py-1.5 rounded-lg bg-primary text-on-primary text-status-label text-status-label font-medium hover:bg-primary/90 transition-colors"
-            >
-              {t("navLogin")}
+            <Link to="/login" className="btn btn-sm btn-primary">
+              Sign in
             </Link>
           )}
         </div>
