@@ -13,4 +13,7 @@ export default defineConfig({
   server: {
     port: 5173,
   },
+  preview: {
+    allowedHosts: ["bca094a865bee0.lhr.life", "rti-reimagined-demo.loca.lt"],
+  },
 });
