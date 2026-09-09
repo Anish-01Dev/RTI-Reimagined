@@ -1,6 +1,7 @@
 import { computeHashChain } from "@/domain/integrity";
 import {
   bulkInsert,
+  getAllCases,
   hasDemoWorkspace,
   markDemoWorkspace,
   pushNotification,
@@ -618,9 +619,63 @@ async function buildCaseE(): Promise<CaseRecord> {
 }
 
 /**
- * Loads the deliberate demo workspace — a coherent set of five linked
- * cases for one citizen (Priya Sharma), all visible from both the citizen
- * and government sides, feeding the same analytics, audit and search.
+ * Case F — a draft that has NOT been filed yet. Its citizen wording is a
+ * classic weak RTI: it asks "why" (an explanation, not a record) and names
+ * no time period. Application Doctor flags exactly one critical and one
+ * review finding on it; applying the Doctor's revision and filing is the
+ * opening beat of the product walkthrough.
+ */
+async function buildCaseF(): Promise<CaseRecord> {
+  const created = daysAgo(1);
+  const events = [
+    ev(
+      "REQUEST_CREATED",
+      created,
+      CITIZEN,
+      'Request drafted: "Ward 11 drainage work — completion status"',
+    ),
+  ];
+  const draft =
+    "Why has the sanctioned drainage work in Ward 11 not been completed? Please share the work order and the inspection reports on file.";
+  const record: CaseRecord = {
+    suchnaId: "SR-2026-F5C30A",
+    backendId: null,
+    subject: "Ward 11 drainage work — completion status",
+    authorityName: "Municipal Corporation of Delhi",
+    department: "Public Works Department",
+    citizenName: CITIZEN,
+    originalRequest: draft,
+    status: "DRAFT",
+    submittedAt: null,
+    responseDueAt: null,
+    createdAt: created,
+    updatedAt: created,
+    trailVersion: events.length,
+    govStage: "RECEIVED",
+    versions: [
+      {
+        version: 1,
+        label: "Citizen draft",
+        text: draft,
+        createdAt: created,
+        source: "citizen",
+      },
+    ],
+    events,
+    evidence: [],
+    audit: [],
+    reviewChecklist: baseChecklist(),
+    appealReason: null,
+    category: "Infrastructure",
+  };
+  await computeHashChain(record.events);
+  return record;
+}
+
+/**
+ * Loads the deliberate demo workspace — a coherent set of linked cases for
+ * one citizen (Priya Sharma), all visible from both the citizen and
+ * government sides, feeding the same analytics, audit and search.
  *
  * This is NEVER called on plain app start. It runs only when a presenter
  * explicitly picks "Citizen demo" / "Government demo" on the login
@@ -628,16 +683,32 @@ async function buildCaseE(): Promise<CaseRecord> {
  * nothing.
  */
 export async function loadDemoWorkspace(): Promise<void> {
-  if (hasDemoWorkspace()) return;
-  const [a, b, c, d, e] = await Promise.all([
+  const cases = await Promise.all([
     buildCaseA(),
     buildCaseB(),
     buildCaseC(),
     buildCaseD(),
     buildCaseE(),
+    buildCaseF(),
   ]);
-  bulkInsert([a, b, c, d, e]);
+
+  // Already seeded once: only top up cases added to the seed since — so a
+  // browser that loaded the demo before Case F existed still gets it,
+  // without wiping any real cases the user has filed.
+  if (hasDemoWorkspace()) {
+    const existing = new Set(getAllCases().map((c) => c.suchnaId));
+    const missing = cases.filter((c) => !existing.has(c.suchnaId));
+    if (missing.length) bulkInsert(missing);
+    return;
+  }
+
+  const [, b, c, d] = cases;
+  bulkInsert(cases);
   markDemoWorkspace();
+  pushNotification(
+    "SR-2026-F5C30A",
+    "Draft SR-2026-F5C30A has 1 critical issue flagged by Application Doctor.",
+  );
   pushNotification(
     b.suchnaId,
     "Your response deadline for SR-2026-B3819C has passed.",

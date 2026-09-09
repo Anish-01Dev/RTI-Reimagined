@@ -175,6 +175,12 @@ export async function submitCase(
   const now = new Date().toISOString();
   record.status = "SUBMITTED";
   record.submittedAt = now;
+  // Filing starts the 30-day Section 7(1) response clock. Seeded cases
+  // carry their own deadline; a case filed from a draft in-session
+  // wouldn't have one otherwise.
+  if (!record.responseDueAt) {
+    record.responseDueAt = new Date(Date.now() + 30 * 86_400_000).toISOString();
+  }
   record = await appendEventInternal(record, {
     type: "REQUEST_SUBMITTED",
     timestamp: now,
