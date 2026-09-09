@@ -1,5 +1,6 @@
 import { Link, useOutletContext } from "react-router-dom";
 import { EVENT_LABEL } from "@/components/case/TrailTimeline";
+import { RequestDiagnosticsCard } from "@/components/case/RequestDiagnosticsCard";
 import { computeNextAction, daysRemainingFor } from "@/domain/actionEngine";
 import type { CaseRecord } from "@/domain/types";
 import { formatDate } from "@/lib/format";
@@ -122,6 +123,8 @@ export function CaseOverviewTab() {
             Open citizen trail
           </Link>
         </div>
+
+        <RequestDiagnosticsCard record={record} />
       </aside>
     </div>
   );

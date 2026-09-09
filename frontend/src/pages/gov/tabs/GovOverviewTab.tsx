@@ -1,6 +1,6 @@
 import { Link, useOutletContext } from "react-router-dom";
 import { GovCard } from "@/components/gov/GovUI";
-import { analyzeRequest } from "@/lib/applicationDoctor";
+import { RequestDiagnosticsCard } from "@/components/case/RequestDiagnosticsCard";
 import { daysRemainingFor } from "@/domain/actionEngine";
 import { legalRuleForStage } from "@/domain/legalRules";
 import type { CaseRecord } from "@/domain/types";
@@ -8,7 +8,6 @@ import { formatDate } from "@/lib/format";
 
 export function GovOverviewTab() {
   const record = useOutletContext<CaseRecord>();
-  const analysis = analyzeRequest(record.originalRequest);
   const rem = daysRemainingFor(record);
   const rule = legalRuleForStage(
     record.status === "OVERDUE" ? "OVERDUE" : "SUBMITTED",
@@ -26,28 +25,7 @@ export function GovOverviewTab() {
           </p>
         </GovCard>
 
-        <GovCard className="p-4">
-          <h2 className="text-[11px] uppercase tracking-[0.08em] font-semibold text-gov-ink-3 mb-3">
-            Request assessment
-          </h2>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <Fact label="Quality" value={`${analysis.clarity}/100`} />
-            <Fact label="Specificity" value={`${analysis.specificity}/100`} />
-            <Fact
-              label="Time period"
-              value={analysis.timePeriodPresent ? "Stated" : "Not stated"}
-            />
-            <Fact
-              label="Held here"
-              value={analysis.authorityConfidence === "Likely correct" ? "Likely" : "Verify"}
-            />
-          </div>
-          {analysis.issue && (
-            <p className="text-[12px] text-amber-400 mt-3 leading-snug">
-              {analysis.issue}
-            </p>
-          )}
-        </GovCard>
+        <RequestDiagnosticsCard record={record} variant="gov" />
 
         <GovCard className="p-4">
           <h2 className="text-[11px] uppercase tracking-[0.08em] font-semibold text-gov-ink-3 mb-3">

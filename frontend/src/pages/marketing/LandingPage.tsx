@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { TopNav } from "@/components/TopNav";
 import { Footer } from "@/components/Footer";
-import { analyzeRequest } from "@/lib/applicationDoctor";
+import { diagnoseRequest } from "@/lib/requestDiagnostics";
 
 const WEAK = "Why hasn't the road in Ward 17 been repaired?";
 
@@ -16,7 +16,7 @@ const TRAIL = [
 ];
 
 export function LandingPage() {
-  const doctor = analyzeRequest(WEAK);
+  const doctor = diagnoseRequest({ text: WEAK });
 
   return (
     <div className="min-h-screen flex flex-col bg-canvas">
@@ -149,33 +149,39 @@ export function LandingPage() {
               </p>
               <div className="flex gap-4 mt-3 text-[12px] text-ink-3">
                 <span>
-                  Specificity{" "}
-                  <strong className="text-danger">{doctor.specificity}</strong>
+                  Quality{" "}
+                  <strong className="text-danger">{doctor.score}/100</strong>
                 </span>
-                <span>
-                  Clarity <strong className="text-ink">{doctor.clarity}</strong>
-                </span>
+                <span>{doctor.assessment}</span>
               </div>
             </div>
             <div className="card p-4">
-              <p className="eyebrow mb-2">Application Doctor</p>
+              <p className="eyebrow mb-2">
+                Diagnostic · {doctor.passed}/{doctor.total} checks pass
+              </p>
               <ul className="flex flex-col gap-1.5 text-[12.5px] text-ink-2">
+                {doctor.checks
+                  .filter((c) => c.severity !== "pass")
+                  .map((c) => (
+                    <li key={c.id} className="flex gap-1.5">
+                      <span
+                        className={`material-symbols-outlined text-[15px] ${c.severity === "critical" ? "text-danger" : "text-warn"}`}
+                      >
+                        {c.severity === "critical" ? "error" : "warning"}
+                      </span>
+                      {c.title}
+                    </li>
+                  ))}
                 <li className="flex gap-1.5">
-                  <span className="material-symbols-outlined text-[15px] text-warn">warning</span>
-                  Asks for a reason, not a record
-                </li>
-                <li className="flex gap-1.5">
-                  <span className="material-symbols-outlined text-[15px] text-warn">warning</span>
-                  No time period
-                </li>
-                <li className="flex gap-1.5">
-                  <span className="material-symbols-outlined text-[15px] text-primary">tips_and_updates</span>
-                  Request the expenditure records instead
+                  <span className="material-symbols-outlined text-[15px] text-primary">
+                    tips_and_updates
+                  </span>
+                  Reframe as a request for the expenditure records
                 </li>
               </ul>
             </div>
             <div className="card p-4 border-success-line">
-              <p className="eyebrow text-success mb-2">Revised</p>
+              <p className="eyebrow text-success mb-2">Revised · ready to file</p>
               <p className="font-serif text-[13.5px] text-ink leading-relaxed">
                 {doctor.suggestedRewrite}
               </p>
@@ -292,10 +298,10 @@ export function LandingPage() {
               style={{ gridTemplateColumns: "repeat(4,minmax(0,1fr))" }}
             >
               {[
-                ["18", "Open"],
-                ["4", "Due today"],
-                ["2", "Overdue"],
-                ["7", "Awaiting review"],
+                ["3", "Open"],
+                ["1", "Due soon"],
+                ["1", "Overdue"],
+                ["3", "Awaiting review"],
               ].map(([v, l]) => (
                 <div key={l} className="bg-gov-panel px-4 py-3">
                   <p className="text-[20px] font-semibold text-gov-ink tnum">{v}</p>
